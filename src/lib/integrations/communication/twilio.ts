@@ -1,22 +1,22 @@
 /**
- * TWILIO — Call and SMS handling integration
+ * TELNYX — Call and SMS handling integration
  *
  * PURPOSE: Inbound call receiving, outbound AI cold calling,
  * SMS delivery, caller ID management (one number per business
  * from master account).
  *
- * AUTH METHOD: API credentials (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN env vars)
- * NUMBER MANAGEMENT: One Twilio number provisioned per business from master account.
+ * AUTH METHOD: API key (TELNYX_API_KEY env var)
+ * NUMBER MANAGEMENT: One Telnyx number provisioned per business from master account.
  * Number mapped to tenant_id in Supabase. Business sees their number in dashboard —
- * never sees Twilio credentials.
- * INBOUND CALLS: Twilio webhook to /api/calls/inbound → identify business by number
- * → build system prompt → ElevenLabs + Claude conversation loop
+ * never sees Telnyx credentials.
+ * INBOUND CALLS: Telnyx webhook to /api/calls/inbound → identify business by number
+ * → build system prompt → Cartesia + Claude conversation loop
  *
  * WORKER: Inline for real-time calls. Worker 2 for scheduled outbound campaigns.
  * PHASE: 5 (real connection)
  */
 
-import Twilio, { Twilio as TwilioClient } from 'twilio';
+import axios from 'axios';
 
 // --- Types ---
 
@@ -74,25 +74,25 @@ export interface TwilioNumberResponse {
   }>;
 }
 
-// --- Client singleton ---
+// --- Client ---
 
-let _client: TwilioClient | null = null;
+const API_BASE = 'https://api.telnyx.com/v2';
 
-function getTwilioClient(): TwilioClient {
-  if (_client) return _client;
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  if (!accountSid || !authToken) {
-    throw new Error('TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN are required');
+function authHeaders(): Record<string, string> {
+  const apiKey = process.env.TELNYX_API_KEY;
+  if (!apiKey) {
+    throw new Error('TELNYX_API_KEY env var is required');
   }
-  _client = Twilio(accountSid, authToken);
-  return _client;
+  return {
+    Authorization: `Bearer ${apiKey}`,
+    'Content-Type': 'application/json',
+  };
 }
 
 function getDefaultFromNumber(): string {
-  const from = process.env.TWILIO_PHONE_NUMBER;
+  const from = process.env.TELNYX_PHONE_NUMBER;
   if (!from) {
-    throw new Error('TWILIO_PHONE_NUMBER env var is required for outbound SMS/calls');
+    throw new Error('TELNYX_PHONE_NUMBER env var is required for outbound SMS/calls');
   }
   return from;
 }
@@ -100,87 +100,158 @@ function getDefaultFromNumber(): string {
 // --- Main exports ---
 
 export async function handleInboundCall(params: TwilioInboundCallParams): Promise<TwilioInboundCallResponse> {
-  const VoiceResponse = Twilio.twiml.VoiceResponse;
-  const twiml = new VoiceResponse();
-  twiml.say('Hello! Thank you for calling. An agent will be with you shortly.');
-  twiml.pause({ length: 1 });
-  twiml.say('Please hold.');
+  const texml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="female">Hello! Thank you for calling. An agent will be with you shortly.</Say>
+  <Pause length="1"/>
+  <Say voice="female">Please hold.</Say>
+</Response>`;
 
   return {
     callSid: params.callSid,
     status: 'handled',
-    twiml: twiml.toString(),
+    twiml: texml,
   };
 }
 
 export async function makeOutboundCall(params: TwilioOutboundCallParams): Promise<TwilioOutboundCallResponse> {
-  const client = getTwilioClient();
   const from = params.from || getDefaultFromNumber();
 
-  const call = await client.calls.create({
-    to: params.to,
-    from,
-    ...(params.twimlUrl ? { url: params.twimlUrl } : {}),
+  const body: Record<string, unknown> = {
+    connection_id: process.env.TELNYX_CONNECTION_ID,
+    to: params.to.startsWith('+') ? params.to : `+${params.to}`,
+    from: from.startsWith('+') ? from : `+${from}`,
+  };
+
+  if (params.twimlUrl) {
+    body.webhook_url = params.twimlUrl;
+  }
+
+  const response = await axios.post(`${API_BASE}/calls`, body, {
+    headers: authHeaders(),
+    timeout: 30_000,
   });
 
+  const data = response.data.data;
+
+  const statusMap: Record<string, TwilioOutboundCallResponse['status']> = {
+    initiating: 'queued',
+    ringing: 'ringing',
+    in_progress: 'in-progress',
+    completed: 'completed',
+    failed: 'failed',
+  };
+
   return {
-    callSid: call.sid,
-    status: (call.status as TwilioOutboundCallResponse['status']) ?? 'queued',
+    callSid: data.call_session_id ?? data.id,
+    status: statusMap[data.call_status] ?? 'queued',
   };
 }
 
 export async function sendSms(params: TwilioSendSmsParams): Promise<TwilioSendSmsResponse> {
-  const client = getTwilioClient();
   const from = params.from || getDefaultFromNumber();
 
-  const message = await client.messages.create({
-    to: params.to,
-    from,
-    body: params.body,
+  const response = await axios.post(`${API_BASE}/messages`, {
+    from: from.startsWith('+') ? from : `+${from}`,
+    to: params.to.startsWith('+') ? params.to : `+${params.to}`,
+    text: params.body,
+  }, {
+    headers: authHeaders(),
+    timeout: 30_000,
   });
 
+  const data = response.data.data;
+
+  const statusMap: Record<string, TwilioSendSmsResponse['status']> = {
+    queued: 'queued',
+    sent: 'sent',
+    delivered: 'delivered',
+    delivering: 'delivered',
+    failed: 'failed',
+    undelivered: 'failed',
+  };
+
   return {
-    messageSid: message.sid,
-    status: (message.status as TwilioSendSmsResponse['status']) ?? 'queued',
+    messageSid: data.id,
+    status: statusMap[data.status] ?? 'queued',
   };
 }
 
 export async function manageNumbers(params: TwilioNumberParams): Promise<TwilioNumberResponse> {
-  const client = getTwilioClient();
-
   if (params.action === 'provision') {
-    const searchParams: Record<string, unknown> = {
-      ...(params.areaCode ? { areaCode: params.areaCode } : {}),
-    };
+    const searchBody: Record<string, unknown> = {};
+    if (params.areaCode) {
+      searchBody.phone_number = { contains: params.areaCode };
+    }
 
-    const number = await client.incomingPhoneNumbers.create(searchParams);
+    const searchResponse = await axios.get(`${API_BASE}/available_phone_numbers`, {
+      headers: authHeaders(),
+      params: {
+        ...searchBody,
+        limit: 1,
+      },
+      timeout: 30_000,
+    });
+
+    const available = searchResponse.data.data;
+    if (!available || available.length === 0) {
+      return { numbers: [] };
+    }
+
+    const numberToProvision = available[0].phone_number;
+
+    const provisionResponse = await axios.post(`${API_BASE}/phone_numbers/messaging`, {
+      phone_number: numberToProvision,
+      messaging_profile_id: process.env.TELNYX_MESSAGING_PROFILE_ID,
+    }, {
+      headers: authHeaders(),
+      timeout: 30_000,
+    });
+
+    const provisioned = provisionResponse.data.data;
 
     return {
       numbers: [{
-        phoneNumber: number.phoneNumber ?? '',
-        sid: number.sid,
+        phoneNumber: provisioned.phone_number ?? numberToProvision,
+        sid: String(provisioned.id),
         capabilities: { voice: true, sms: true },
       }],
     };
   }
 
   if (params.action === 'list') {
-    const numbers = await client.incomingPhoneNumbers.list({ limit: 20 });
+    const response = await axios.get(`${API_BASE}/phone_numbers`, {
+      headers: authHeaders(),
+      params: { page_size: 20 },
+      timeout: 30_000,
+    });
+
+    const numbers = response.data.data ?? [];
 
     return {
-      numbers: numbers.map((n: { phoneNumber: string | null; sid: string }) => ({
-        phoneNumber: n.phoneNumber ?? '',
-        sid: n.sid,
+      numbers: numbers.map((n: any) => ({
+        phoneNumber: n.phone_number ?? '',
+        sid: String(n.id),
         capabilities: { voice: true, sms: true },
       })),
     };
   }
 
   if (params.action === 'release' && params.phoneNumber) {
-    const numbers = await client.incomingPhoneNumbers.list({ phoneNumber: params.phoneNumber });
-    for (const n of numbers) {
-      await client.incomingPhoneNumbers(n.sid).remove();
+    const listResponse = await axios.get(`${API_BASE}/phone_numbers`, {
+      headers: authHeaders(),
+      params: { phone_number: params.phoneNumber, page_size: 1 },
+      timeout: 30_000,
+    });
+
+    const matching = listResponse.data.data ?? [];
+    for (const n of matching) {
+      await axios.delete(`${API_BASE}/phone_numbers/${n.id}`, {
+        headers: authHeaders(),
+        timeout: 30_000,
+      });
     }
+
     return { numbers: [] };
   }
 

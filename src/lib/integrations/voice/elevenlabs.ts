@@ -1,20 +1,20 @@
 /**
- * ELEVENLABS — Voice synthesis integration (REAL)
+ * CARTESIA — Voice synthesis integration (REAL)
  *
  * PURPOSE: Voice synthesis for inbound call responses,
  * faceless channel character voices, voice cloning.
  *
- * AUTH METHOD: API key (ELEVENLABS_API_KEY env var)
+ * AUTH METHOD: API key (CARTESIA_API_KEY env var)
  * RATE LIMITS: Depends on plan tier. Queue-based throttling.
  * VOICE MANAGEMENT: Each business gets an assigned voice from the
- * ElevenLabs account. Voice IDs stored per tenant in Supabase.
+ * Cartesia account. Voice IDs stored per tenant in Supabase.
  *
- * API: https://api.elevenlabs.io/v1
- *   - POST /text-to-speech/{voice_id}       — synthesize speech
- *   - GET  /voices                           — list available voices
- *   - GET  /voices/{voice_id}               — get single voice details
- *   - POST /voices/add                       — clone a voice from samples
- *   - DEL  /voices/{voice_id}               — delete a cloned voice
+ * API: https://api.cartesia.ai
+ *   - POST /tts/bytes                        — synthesize speech
+ *   - GET  /voices                            — list available voices
+ *   - GET  /voices/{voice_id}                — get single voice details
+ *   - POST /voices/clone                      — clone a voice from samples
+ *   - DEL  /voices/{voice_id}                — delete a cloned voice
  *
  * WORKER: Worker 1 (voice generation), inline for real-time call handling
  * PHASE: 7 (real connection)
@@ -24,7 +24,6 @@
  * On final failure, error is logged with tenant context and re-thrown.
  */
 
-import { ELEVENLABS_API_KEY } from '../../config/env';
 import { upload } from '../../storage/r2-client';
 import axios from 'axios';
 
@@ -40,7 +39,7 @@ export type CloningLanguage = 'en' | 'ny';
 export interface VoiceSynthesisParams {
   /** Text to synthesize into speech */
   text: string;
-  /** ElevenLabs voice ID assigned to this business */
+  /** Cartesia voice ID assigned to this business */
   voiceId: string;
   /** Output audio format (default: mp3_44100_128) */
   outputFormat?: AudioOutputFormat;
@@ -115,7 +114,7 @@ export interface VoiceSynthesisResponse {
   sizeBytes: number;
 }
 
-/** A single voice from the ElevenLabs library */
+/** A single voice from the Cartesia library */
 export interface ElevenLabsVoice {
   /** Voice ID */
   voiceId: string;
@@ -161,14 +160,15 @@ export interface DeleteVoiceResponse {
 
 // --- Client ---
 
-const API_BASE = 'https://api.elevenlabs.io/v1';
+const API_BASE = 'https://api.cartesia.ai';
 
 function authHeaders(): Record<string, string> {
-  if (!ELEVENLABS_API_KEY) {
-    throw new Error('ElevenLabs not configured. Set ELEVENLABS_API_KEY env var.');
+  const apiKey = process.env.CARTESIA_API_KEY;
+  if (!apiKey) {
+    throw new Error('Cartesia not configured. Set CARTESIA_API_KEY env var.');
   }
   return {
-    'xi-api-key': ELEVENLABS_API_KEY,
+    'X-API-Key': apiKey,
   };
 }
 
@@ -190,7 +190,7 @@ async function retryWithBackoff<T>(operation: () => Promise<T>, context: string)
       lastError = error instanceof Error ? error : new Error(String(error));
 
       if (!isRetryableError(error) || attempt === RETRY_CONFIG.maxRetries) {
-        console.error(`[ElevenLabs] All attempts failed for ${context}`, { error: lastError.message });
+        console.error(`[Cartesia] All attempts failed for ${context}`, { error: lastError.message });
         throw lastError;
       }
 
@@ -198,7 +198,7 @@ async function retryWithBackoff<T>(operation: () => Promise<T>, context: string)
       const jitter = Math.random() * delay * 0.1;
 
       console.warn(
-        `[ElevenLabs] Attempt ${attempt + 1}/${RETRY_CONFIG.maxRetries + 1} failed for ${context}. ` +
+        `[Cartesia] Attempt ${attempt + 1}/${RETRY_CONFIG.maxRetries + 1} failed for ${context}. ` +
         `Retrying in ${Math.round(delay + jitter)}ms.`
       );
 
@@ -228,10 +228,34 @@ function formatToContentType(format: AudioOutputFormat): string {
   return 'audio/mpeg';
 }
 
+// --- Cartesia output format mapping ---
+
+function formatToCartesiaOutput(format: AudioOutputFormat): Record<string, unknown> {
+  if (format === 'mp3_44100_128') {
+    return { container: 'mp3', sample_rate: 44100, bit_rate: 128000, encoding: 'mp3' };
+  }
+  if (format === 'mp3_44100_192') {
+    return { container: 'mp3', sample_rate: 44100, bit_rate: 192000, encoding: 'mp3' };
+  }
+  if (format === 'pcm_16000') {
+    return { container: 'raw', sample_rate: 16000, encoding: 'pcm_s16le' };
+  }
+  if (format === 'pcm_22050') {
+    return { container: 'raw', sample_rate: 22050, encoding: 'pcm_s16le' };
+  }
+  if (format === 'pcm_44100') {
+    return { container: 'raw', sample_rate: 44100, encoding: 'pcm_s16le' };
+  }
+  if (format === 'ulaw_8000') {
+    return { container: 'raw', sample_rate: 8000, encoding: 'pcm_mulaw' };
+  }
+  return { container: 'mp3', sample_rate: 44100, bit_rate: 128000, encoding: 'mp3' };
+}
+
 // --- Main exports ---
 
 /**
- * Synthesize speech from text using ElevenLabs.
+ * Synthesize speech from text using Cartesia Sonic-3.
  *
  * Used for: inbound call AI voice responses, faceless channel character voices.
  * Voice IDs are managed per tenant — each business has an assigned voice.
@@ -249,26 +273,24 @@ export async function synthesize(params: VoiceSynthesisParams): Promise<VoiceSyn
   const contentType = formatToContentType(format);
 
   return retryWithBackoff(async () => {
-    const url = `${API_BASE}/text-to-speech/${params.voiceId}`;
+    const url = `${API_BASE}/tts/bytes`;
 
     const body = {
-      text: params.text,
-      model_id: 'eleven_multilingual_v2',
-      voice_settings: {
-        stability: params.stability ?? 0.5,
-        similarity_boost: params.similarityBoost ?? 0.75,
-        style: params.style ?? 0.0,
-        use_speaker_boost: params.speakerBoost ?? true,
+      model_id: 'sonic-3',
+      transcript: params.text,
+      voice: {
+        mode: 'id',
+        id: params.voiceId,
       },
+      output_format: formatToCartesiaOutput(format),
     };
 
     const response = await axios.post(url, body, {
       headers: {
         ...authHeaders(),
         'Content-Type': 'application/json',
-        Accept: 'audio/mpeg',
+        Accept: contentType,
       },
-      params: { output_format: format },
       responseType: 'arraybuffer',
       timeout: 120_000,
     });
@@ -279,17 +301,17 @@ export async function synthesize(params: VoiceSynthesisParams): Promise<VoiceSyn
     // Estimate duration from format bitrate
     let duration: number;
     if (format.startsWith('mp3_44100_128')) {
-      duration = sizeBytes / 16000; // 128kbps ≈ 16KB/s
+      duration = sizeBytes / 16000;
     } else if (format.startsWith('mp3_44100_192')) {
-      duration = sizeBytes / 24000; // 192kbps ≈ 24KB/s
+      duration = sizeBytes / 24000;
     } else if (format.startsWith('pcm_16000')) {
-      duration = sizeBytes / 32000; // 16kHz mono 16-bit ≈ 32KB/s
+      duration = sizeBytes / 32000;
     } else if (format.startsWith('pcm_22050')) {
       duration = sizeBytes / 44100;
     } else if (format.startsWith('pcm_44100')) {
       duration = sizeBytes / 88200;
     } else if (format.startsWith('ulaw_8000')) {
-      duration = sizeBytes / 8000; // 8kHz μ-law ≈ 8KB/s
+      duration = sizeBytes / 8000;
     } else {
       duration = sizeBytes / 16000;
     }
@@ -318,11 +340,11 @@ export async function synthesize(params: VoiceSynthesisParams): Promise<VoiceSyn
       contentType,
       sizeBytes,
     };
-  }, `ElevenLabs TTS voice=${params.voiceId} tenant=${params.tenantId}`);
+  }, `Cartesia TTS voice=${params.voiceId} tenant=${params.tenantId}`);
 }
 
 /**
- * List all available voices in the ElevenLabs account.
+ * List all available voices in the Cartesia account.
  *
  * Used for: voice selection during onboarding, admin voice management.
  *
@@ -340,17 +362,17 @@ export async function listVoices(params: ListVoicesParams): Promise<ListVoicesRe
 
     const data = response.data;
 
-    const voices: ElevenLabsVoice[] = (data.voices ?? []).map((v: any) => ({
-      voiceId: v.voice_id,
+    const voices: ElevenLabsVoice[] = (data.data ?? []).map((v: any) => ({
+      voiceId: v.id,
       name: v.name,
-      models: v.models ?? [],
+      models: ['sonic-3'],
       labels: v.labels ?? {},
       previewUrl: v.preview_url ?? '',
       category: v.category ?? 'premade',
     }));
 
     return { voices };
-  }, `ElevenLabs list voices tenant=${params.tenantId}`);
+  }, `Cartesia list voices tenant=${params.tenantId}`);
 }
 
 /**
@@ -374,9 +396,9 @@ export async function getVoice(params: GetVoiceParams): Promise<GetVoiceResponse
 
     return {
       voice: {
-        voiceId: v.voice_id,
+        voiceId: v.id,
         name: v.name,
-        models: v.models ?? [],
+        models: ['sonic-3'],
         labels: v.labels ?? {},
         previewUrl: v.preview_url ?? '',
         category: v.category ?? 'premade',
@@ -386,7 +408,7 @@ export async function getVoice(params: GetVoiceParams): Promise<GetVoiceResponse
         },
       },
     };
-  }, `ElevenLabs get voice=${params.voiceId} tenant=${params.tenantId}`);
+  }, `Cartesia get voice=${params.voiceId} tenant=${params.tenantId}`);
 }
 
 /**
@@ -395,7 +417,7 @@ export async function getVoice(params: GetVoiceParams): Promise<GetVoiceResponse
  * Used for: creating branded character voices for faceless channels,
  * cloning a business owner's voice for call responses.
  *
- * Downloads samples from URLs, uploads to ElevenLabs for voice cloning.
+ * Downloads samples from URLs, uploads to Cartesia for voice cloning.
  * Requires at least 25 seconds of total audio across all samples.
  *
  * @param params - Name, sample URLs, labels, tenantId
@@ -403,7 +425,7 @@ export async function getVoice(params: GetVoiceParams): Promise<GetVoiceResponse
  */
 export async function cloneVoice(params: CloneVoiceParams): Promise<CloneVoiceResponse> {
   return retryWithBackoff(async () => {
-    const url = `${API_BASE}/voices/add`;
+    const url = `${API_BASE}/voices/clone`;
 
     // Download all sample audio files in parallel
     const sampleBuffers = await Promise.all(
@@ -411,7 +433,7 @@ export async function cloneVoice(params: CloneVoiceParams): Promise<CloneVoiceRe
         const response = await axios.get(sampleUrl, {
           responseType: 'arraybuffer',
           timeout: 60_000,
-          maxContentLength: 10 * 1024 * 1024, // 10MB per sample
+          maxContentLength: 10 * 1024 * 1024,
         });
         return {
           buffer: Buffer.from(response.data as ArrayBuffer),
@@ -455,14 +477,14 @@ export async function cloneVoice(params: CloneVoiceParams): Promise<CloneVoiceRe
     const data = response.data;
 
     return {
-      voiceId: data.voice_id,
+      voiceId: data.id,
       requiresVerification: data.requires_verification ?? false,
     };
-  }, `ElevenLabs clone voice="${params.name}" tenant=${params.tenantId}`);
+  }, `Cartesia clone voice="${params.name}" tenant=${params.tenantId}`);
 }
 
 /**
- * Delete a cloned voice from the ElevenLabs account.
+ * Delete a cloned voice from the Cartesia account.
  *
  * Used for: cleaning up voices when a tenant churns,
  * removing incorrectly cloned voices.
@@ -480,5 +502,5 @@ export async function deleteVoice(params: DeleteVoiceParams): Promise<DeleteVoic
     });
 
     return { deleted: true };
-  }, `ElevenLabs delete voice=${params.voiceId} tenant=${params.tenantId}`);
+  }, `Cartesia delete voice=${params.voiceId} tenant=${params.tenantId}`);
 }
