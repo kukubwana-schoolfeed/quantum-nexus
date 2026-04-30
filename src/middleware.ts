@@ -40,8 +40,10 @@ const SESSION_CLAIMS_HEADER = 'x-session-claims';
  */
 const PUBLIC_ROUTES = [
   '/',
+  '/login',
   '/onboarding',
   '/api/auth/callback',
+  '/api/onboarding',
   '/api/webhooks',
 ];
 

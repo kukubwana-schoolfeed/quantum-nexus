@@ -14,5 +14,5 @@ import { redirect } from 'next/navigation';
  * @returns {never} Redirects immediately
  */
 export default function Home(): never {
-  redirect('/dashboard');
+  redirect('/login');
 }
