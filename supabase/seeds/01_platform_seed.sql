@@ -255,6 +255,17 @@ INSERT INTO niche_profiles (id, created_at, updated_at, niche_name, status, appr
   );
 
 -- ============================================================================
+-- NICHES
+-- ============================================================================
+
+INSERT INTO niches (slug, name, description, keywords, active) VALUES
+  ('custom-printing-studio', 'Custom Printing Studio', 'Custom printing, laptop wraps, phone covers, portraits, branded merchandise', ARRAY['custom printing', 'laptop wraps', 'phone covers', 'portraits', 'branded merchandise'], true),
+  ('car-sales-dealership', 'Car Sales & Dealership', 'Vehicle sales, car dealer, automotive, used cars', ARRAY['car sales', 'vehicle sales', 'car dealer', 'automotive'], true),
+  ('phone-sales-repairs', 'Phone Sales & Repairs', 'Mobile phones, smartphone repairs, electronics', ARRAY['phone sales', 'phone repairs', 'smartphones', 'electronics'], true),
+  ('vehicle-clearing-agent', 'Vehicle Clearing Agent', 'Customs clearing, vehicle imports, ZRA clearance', ARRAY['vehicle clearing', 'customs clearing', 'ZRA', 'vehicle imports'], true),
+  ('freight-forwarding', 'Freight Forwarding', 'Logistics, cargo, shipping, freight, import export', ARRAY['freight forwarding', 'logistics', 'cargo', 'shipping'], true);
+
+-- ============================================================================
 -- ENCRYPTED KEYS
 -- ============================================================================
 

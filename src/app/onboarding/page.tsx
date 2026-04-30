@@ -32,6 +32,8 @@ interface FormData {
   email: string;
   website: string;
   nicheId: string;
+  customNicheName: string;
+  customNicheDescription: string;
   brandTone: string;
   brandValues: string;
   services: string;
@@ -57,6 +59,8 @@ export default function OnboardingPage(): JSX.Element {
     email: '',
     website: '',
     nicheId: '',
+    customNicheName: '',
+    customNicheDescription: '',
     brandTone: '',
     brandValues: '',
     services: '',
@@ -295,6 +299,8 @@ function StepBusinessInfo({ formData, updateField }: { formData: FormData; updat
 /* ─── Step 2: Niche Selection ────────────────────────────────────────────── */
 
 function StepNicheSelection({ niches, formData, updateField }: { niches: NicheDTO[] | null; formData: FormData; updateField: <K extends keyof FormData>(key: K, value: FormData[K]) => void }) {
+  const isOther = formData.nicheId === 'other';
+
   return (
     <div className="space-y-4">
       <p className="text-gray-400 text-sm">Select the niche that best describes your business.</p>
@@ -329,9 +335,26 @@ function StepNicheSelection({ niches, formData, updateField }: { niches: NicheDT
               </div>
             </button>
           ))}
+          <button
+            onClick={() => updateField('nicheId', 'other')}
+            className={`p-4 rounded-lg border text-left transition-colors ${
+              isOther
+                ? 'bg-nexus-500/15 border-nexus-500/50 ring-1 ring-nexus-500/30'
+                : 'bg-gray-900 border-gray-700 hover:border-gray-600'
+            }`}
+          >
+            <span className="text-sm font-medium text-white">Other</span>
+            <p className="text-xs text-gray-500 mt-1">Can&apos;t find your niche? Enter a custom one.</p>
+          </button>
         </div>
       ) : (
         <div className="text-gray-500 text-sm">Loading niches...</div>
+      )}
+      {isOther && (
+        <div className="space-y-3">
+          <Field label="Niche Name" value={formData.customNicheName} onChange={v => updateField('customNicheName', v)} placeholder="e.g. Custom Printing Studio" />
+          <Field label="Description" value={formData.customNicheDescription} onChange={v => updateField('customNicheDescription', v)} placeholder="e.g. Custom printing, laptop wraps, phone covers" multiline />
+        </div>
       )}
     </div>
   );
@@ -482,7 +505,7 @@ function StepReview({ formData, niches, stepStatusMap }: { formData: FormData; n
       </ReviewSection>
 
       <ReviewSection title="Niche" status={stepStatusMap['niche_selection']}>
-        <ReviewRow label="Selected Niche" value={selectedNiche?.name ?? (formData.nicheId || '—')} />
+        <ReviewRow label="Selected Niche" value={selectedNiche?.name ?? (formData.nicheId === 'other' ? formData.customNicheName : (formData.nicheId || '—'))} />
       </ReviewSection>
 
       <ReviewSection title="Brand Voice" status={stepStatusMap['brand_voice']}>
