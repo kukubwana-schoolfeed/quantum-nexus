@@ -52,10 +52,7 @@ const jwks = createRemoteJWKSet(JWKS_URL);
  *
  * @module auth/supabase-auth
  */
-const supabaseClient = createClient(
-  NEXT_PUBLIC_SUPABASE_URL,
-  NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+let _supabaseClient: SupabaseClient | null = null;
 
 /**
  * Supabase admin client using service role key.
@@ -80,7 +77,13 @@ const supabaseAdmin = createClient(
  * @module auth/supabase-auth
  */
 export function getSupabaseAuthClient(): SupabaseClient {
-  return supabaseClient;
+  if (!_supabaseClient) {
+    _supabaseClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
+    );
+  }
+  return _supabaseClient;
 }
 
 /**
@@ -106,7 +109,7 @@ export function getSupabaseAdminClient(): SupabaseClient {
  * @module auth/supabase-auth
  */
 export async function signIn(email: string, password: string): Promise<SessionClaims> {
-  const { data, error } = await supabaseClient.auth.signInWithPassword({
+  const { data, error } = await getSupabaseAuthClient().auth.signInWithPassword({
     email,
     password,
   });
@@ -137,7 +140,7 @@ export async function signIn(email: string, password: string): Promise<SessionCl
  * @module auth/supabase-auth
  */
 export async function signOut(accessToken: string): Promise<void> {
-  const { error } = await supabaseClient.auth.admin.signOut(accessToken);
+  const { error } = await getSupabaseAuthClient().auth.admin.signOut(accessToken);
   if (error) {
     // Log but don't throw — sign-out should be best-effort
     console.error(`[Auth] Sign-out failed: ${error.message}`);
@@ -154,7 +157,7 @@ export async function signOut(accessToken: string): Promise<void> {
  * @module auth/supabase-auth
  */
 export async function refreshSession(refreshToken: string): Promise<SessionClaims> {
-  const { data, error } = await supabaseClient.auth.refreshSession({
+  const { data, error } = await getSupabaseAuthClient().auth.refreshSession({
     refresh_token: refreshToken,
   });
 
