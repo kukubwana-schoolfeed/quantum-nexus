@@ -63,10 +63,7 @@ let _supabaseClient: SupabaseClient | null = null;
  *
  * @module auth/supabase-auth
  */
-const supabaseAdmin = createClient(
-  NEXT_PUBLIC_SUPABASE_URL,
-  SUPABASE_SERVICE_ROLE_KEY
-);
+let _supabaseAdmin: SupabaseClient | null = null;
 
 /**
  * Creates and returns the Supabase Auth client instance.
@@ -95,7 +92,13 @@ export function getSupabaseAuthClient(): SupabaseClient {
  * @module auth/supabase-auth
  */
 export function getSupabaseAdminClient(): SupabaseClient {
-  return supabaseAdmin;
+  if (!_supabaseAdmin) {
+    _supabaseAdmin = createClient(
+      NEXT_PUBLIC_SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY
+    );
+  }
+  return _supabaseAdmin;
 }
 
 /**
@@ -190,7 +193,7 @@ export async function refreshSession(refreshToken: string): Promise<SessionClaim
  */
 export async function fetchTenantStatus(tenantId: string): Promise<TenantStatus> {
   try {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await getSupabaseAdminClient()
       .from('tenants')
       .select('status')
       .eq('id', tenantId)
