@@ -35,7 +35,7 @@ import {
  *
  * @module auth/supabase-auth
  */
-const JWKS_URL = new URL(`${NEXT_PUBLIC_SUPABASE_URL}/.well-known/jwks.json`);
+const JWKS_URL = new URL(`${NEXT_PUBLIC_SUPABASE_URL}/auth/v1/.well-known/jwks.json`);
 
 /**
  * Cached JWKS key set for JWT verification.
