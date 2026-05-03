@@ -57,6 +57,7 @@ export async function earnPoints(
 
   // Atomically adjust points and auto-upgrade tier
   const newBalance = await db.customerQueries.adjustLoyaltyPoints(tenantId, customerId, points);
+  if (newBalance === null) return { success: false, data: { success: false, newBalance: 0, newTier: 'standard' } };
 
   // Determine the tier the customer landed in after the points update
   let newTier = 'standard';
@@ -111,6 +112,7 @@ export async function redeemPoints(
 
   // Atomically deduct points (adjustLoyaltyPoints enforces non-negative floor)
   const newBalance = await db.customerQueries.adjustLoyaltyPoints(tenantId, customerId, -points);
+  if (newBalance === null) return { success: false, data: { success: false, newBalance: 0, newTier: 'standard' } };
 
   let newTier = 'standard';
   if (newBalance >= TIER_THRESHOLDS.vip) newTier = 'vip';
@@ -151,6 +153,7 @@ export async function adjustPoints(
 
   // Atomically adjust (adjustLoyaltyPoints floors at 0)
   const newBalance = await db.customerQueries.adjustLoyaltyPoints(tenantId, customerId, points);
+  if (newBalance === null) return { success: false, data: { success: false, newBalance: 0, newTier: 'standard' } };
 
   let newTier = 'standard';
   if (newBalance >= TIER_THRESHOLDS.vip) newTier = 'vip';
