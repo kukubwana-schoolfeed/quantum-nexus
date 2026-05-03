@@ -57,27 +57,27 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Revenue Today"
-          value={`K${overview.revenueToday.toLocaleString()}`}
+          value={`K${(overview.revenueToday ?? 0).toLocaleString()}`}
           icon="💰"
           trend="up"
           trendValue="+8%"
         />
         <StatCard
           label="Revenue This Week"
-          value={`K${overview.revenueThisWeek.toLocaleString()}`}
+          value={`K${(overview.revenueThisWeek ?? 0).toLocaleString()}`}
           icon="📈"
           sublabel="7-day total"
         />
         <StatCard
           label="Revenue This Month"
-          value={`K${overview.revenueThisMonth.toLocaleString()}`}
+          value={`K${(overview.revenueThisMonth ?? 0).toLocaleString()}`}
           icon="🗓️"
           trend="up"
           trendValue="+15%"
         />
         <StatCard
           label="New Customers Today"
-          value={overview.newCustomersToday}
+          value={overview.newCustomersToday ?? 0}
           icon="👥"
           sublabel="Acquired today"
         />
@@ -86,19 +86,19 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard
           label="Posts Published Today"
-          value={overview.postsPublishedToday}
+          value={overview.postsPublishedToday ?? 0}
           icon="📝"
           sublabel="Across all platforms"
         />
         <StatCard
           label="Posts Scheduled (24h)"
-          value={overview.postsScheduled24h}
+          value={overview.postsScheduled24h ?? 0}
           icon="⏰"
           sublabel="Next 24 hours"
         />
         <StatCard
           label="Indexed Pages"
-          value={overview.totalIndexedPages}
+          value={overview.totalIndexedPages ?? 0}
           icon="🔍"
           trend="up"
           trendValue="+5"
@@ -108,14 +108,14 @@ export default function AnalyticsPage() {
       {/* Revenue Chart */}
       <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
         <h2 className="text-lg font-semibold text-white mb-4">Revenue Over Time</h2>
-        {chartData && chartData.data.length > 0 ? (
+        {chartData && (chartData.data?.length ?? 0) > 0 ? (
           <div className="h-64 flex items-end gap-2 px-4">
-            {chartData.data.map((d, i) => (
+            {(chartData.data ?? []).map((d, i) => (
               <div key={i} className="flex-1 flex flex-col items-center gap-1">
                 <div
                   className="w-full bg-nexus-700 hover:bg-nexus-600 rounded-t transition-colors"
                   style={{ height: `${(d.value / 10000) * 100}%`, minHeight: '8px' }}
-                  title={`K${d.value.toLocaleString()}`}
+                  title={`K${(d.value ?? 0).toLocaleString()}`}
                 />
                 <span className="text-[10px] text-gray-500">{d.label}</span>
               </div>

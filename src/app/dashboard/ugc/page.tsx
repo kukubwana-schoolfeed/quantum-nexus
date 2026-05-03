@@ -86,7 +86,7 @@ export default function UGCStudioPage(): JSX.Element {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Videos Uploaded" value={videoArr.length} />
         <StatCard label="Clip Candidates" value={clipArr.length} />
-        <StatCard label="Total Views" value={perfData.views.toLocaleString()} />
+        <StatCard label="Total Views" value={(perfData.views ?? 0).toLocaleString()} />
         <StatCard label="Engagement Rate" value={`${perfData.engagement}%`} trend="up" />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -96,7 +96,7 @@ export default function UGCStudioPage(): JSX.Element {
         </div>
         <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-nexus-700 transition-colors cursor-pointer">
           <h2 className="text-sm font-semibold text-white">Clip Preview</h2>
-          <p className="text-xs text-gray-500 mt-1">{clipArr.filter(c => c.status === 'candidate').length} candidates awaiting review</p>
+          <p className="text-xs text-gray-500 mt-1">{clipArr?.filter(c => c.status === 'candidate')?.length ?? 0} candidates awaiting review</p>
         </div>
         <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-nexus-700 transition-colors cursor-pointer">
           <h2 className="text-sm font-semibold text-white">Content Calendar</h2>

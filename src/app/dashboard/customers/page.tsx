@@ -39,7 +39,7 @@ export default function CustomersPage() {
 
   const totalCustomers = customers?.length ?? 0;
   const totalLoyaltyPoints = customers?.reduce((sum, c) => sum + c.loyaltyPoints, 0) ?? 0;
-  const priorityCount = customers?.filter(c => c.tier === 'priority').length ?? 0;
+  const priorityCount = customers?.filter(c => c.tier === 'priority')?.length ?? 0;
 
   const columns = [
     { header: 'Name', key: 'firstName', render: (_: unknown, row: Record<string, unknown>) =>

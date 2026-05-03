@@ -65,19 +65,19 @@ export default function Page(): JSX.Element {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Blog Posts Today"
-          value={blogSchedule.posts.length}
+          value={blogSchedule.posts?.length ?? 0}
           icon="BP"
           sublabel="scheduled posts"
         />
         <StatCard
           label="Q&A Pending"
-          value={qaTasks.pending.length}
+          value={qaTasks.pending?.length ?? 0}
           icon="QA"
           sublabel="awaiting answers"
         />
         <StatCard
           label="Q&A Awaiting Confirmation"
-          value={qaTasks.awaitingConfirmation.length}
+          value={qaTasks.awaitingConfirmation?.length ?? 0}
           icon="AC"
           sublabel="confirm posted"
         />
@@ -97,7 +97,7 @@ export default function Page(): JSX.Element {
             { header: 'Time', key: 'time' },
             { header: 'Target Keyword', key: 'keyword' },
           ]}
-          data={blogSchedule.posts.map((p, i) => ({
+          data={(blogSchedule.posts ?? []).map((p, i) => ({
             id: p.postId ?? `blog_${i}`,
             time: p.time,
             keyword: p.keyword,
@@ -114,7 +114,7 @@ export default function Page(): JSX.Element {
             <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-2">
               Pending Answers
             </h3>
-            {qaTasks.pending.length === 0 ? (
+            {(qaTasks.pending?.length ?? 0) === 0 ? (
               <EmptyState
                 title="No pending Q&A"
                 description="All questions have been answered."
@@ -125,7 +125,7 @@ export default function Page(): JSX.Element {
                   { header: 'Question', key: 'question' },
                   { header: 'Status', key: 'status' },
                 ]}
-                data={qaTasks.pending as unknown as Record<string, unknown>[]}
+                data={(qaTasks.pending ?? []) as unknown as Record<string, unknown>[]}
                 emptyMessage="No pending questions."
               />
             )}
@@ -134,7 +134,7 @@ export default function Page(): JSX.Element {
             <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-2">
               Awaiting Confirmation
             </h3>
-            {qaTasks.awaitingConfirmation.length === 0 ? (
+            {(qaTasks.awaitingConfirmation?.length ?? 0) === 0 ? (
               <EmptyState
                 title="No confirmations needed"
                 description="All Q&A posts have been confirmed."
@@ -145,7 +145,7 @@ export default function Page(): JSX.Element {
                   { header: 'Question', key: 'question' },
                   { header: 'Status', key: 'status' },
                 ]}
-                data={qaTasks.awaitingConfirmation as unknown as Record<string, unknown>[]}
+                data={(qaTasks.awaitingConfirmation ?? []) as unknown as Record<string, unknown>[]}
                 emptyMessage="No confirmations pending."
               />
             )}
