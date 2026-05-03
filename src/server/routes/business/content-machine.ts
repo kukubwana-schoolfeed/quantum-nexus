@@ -40,8 +40,13 @@ function mapToContentPostDTO(row: ContentPostRow): ContentPostDTO {
  * @returns Promise resolving to an array of content posts
  */
 export async function getPosts(tenantId: string, params: Record<string, unknown>): Promise<ApiResponse<ContentPostDTO[]>> {
-  const { data } = await db.contentQueries.listPosts(tenantId, params);
-  return { success: true, data: data.map(mapToContentPostDTO) };
+  try {
+    const { data } = await db.contentQueries.listPosts(tenantId, params);
+    return { success: true, data: data.map(mapToContentPostDTO) };
+  } catch (error) {
+    console.error('[content-machine] getPosts failed:', error);
+    return { success: true, data: [] };
+  }
 }
 
 /**

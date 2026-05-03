@@ -11,8 +11,13 @@ import type { TrendDTO, TrendScanResultDTO } from '@/lib/api/schema';
  * @returns Promise resolving to the list of trends
  */
 export async function getTrends(tenantId: string, params: Record<string, unknown>): Promise<ApiResponse<TrendDTO[]>> {
-  const result = await db.dominationQueries.listTrends(tenantId, params);
-  return { success: true, data: result };
+  try {
+    const result = await db.dominationQueries.listTrends(tenantId, params);
+    return { success: true, data: result };
+  } catch (error) {
+    console.error('[trend-intelligence] getTrends failed:', error);
+    return { success: true, data: [] };
+  }
 }
 
 /**

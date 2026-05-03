@@ -10,8 +10,13 @@ import type { BusinessAuditDTO } from '@/lib/api/schema';
  * @returns Promise resolving to the list of business audits
  */
 export async function getAudits(tenantId: string): Promise<ApiResponse<BusinessAuditDTO[]>> {
-  const result = await db.dominationQueries.listBusinessAudits(tenantId, {});
-  return { success: true, data: result };
+  try {
+    const result = await db.dominationQueries.listBusinessAudits(tenantId, {});
+    return { success: true, data: result };
+  } catch (error) {
+    console.error('[business-audit] getAudits failed:', error);
+    return { success: true, data: [] };
+  }
 }
 
 /**

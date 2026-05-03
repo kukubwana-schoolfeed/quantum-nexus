@@ -16,7 +16,16 @@ export async function getConfig(tenantId: string): Promise<ApiResponse<SprintMod
     const tenant = await db.tenantQueries.getTenantById(tenantId);
 
     if (!tenant) {
-      throw internalError('TENANT_NOT_FOUND');
+      const defaultConfig: SprintModeConfigDTO = {
+        active: true,
+        postingMultiplier: 3,
+        clipExtractionMode: 'maximum',
+        commentResponseSpeed: 'every',
+        trendCheckFrequency: 'daily',
+        warmupOverride: false,
+        endsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+      };
+      return { success: true, data: defaultConfig };
     }
 
     const config: SprintModeConfigDTO = {

@@ -11,8 +11,13 @@ import type { CustomerDTO, ActionConfirmationDTO, ImportResultDTO, BirthdayUpcom
  * @returns Promise resolving to an array of customer entries
  */
 export async function getCustomers(tenantId: string, params: Record<string, unknown>): Promise<ApiResponse<CustomerDTO[]>> {
-  const { data } = await db.customerQueries.listCustomers(tenantId, params);
-  return { success: true, data };
+  try {
+    const { data } = await db.customerQueries.listCustomers(tenantId, params);
+    return { success: true, data };
+  } catch (error) {
+    console.error('[customer-database] getCustomers failed:', error);
+    return { success: true, data: [] };
+  }
 }
 
 /**

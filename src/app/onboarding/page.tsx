@@ -36,6 +36,10 @@ interface FormData {
   customNicheDescription: string;
   brandTone: string;
   brandValues: string;
+  brandDescription: string;
+  targetAudience: string;
+  competitors: string;
+  usp: string;
   services: string;
   pricingModel: string;
   platforms: string[];
@@ -63,6 +67,10 @@ export default function OnboardingPage(): JSX.Element {
     customNicheDescription: '',
     brandTone: '',
     brandValues: '',
+    brandDescription: '',
+    targetAudience: '',
+    competitors: '',
+    usp: '',
     services: '',
     pricingModel: '',
     platforms: [],
@@ -395,6 +403,10 @@ function StepBrandVoice({ formData, updateField }: { formData: FormData; updateF
           className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-nexus-500 resize-none"
         />
       </div>
+      <Field label="Brand Description" value={formData.brandDescription} onChange={v => updateField('brandDescription', v)} placeholder="e.g. A modern Zambian restaurant celebrating local culinary heritage" multiline />
+      <Field label="Target Audience" value={formData.targetAudience} onChange={v => updateField('targetAudience', v)} placeholder="e.g. Young professionals and families aged 25-50 in Lusaka" multiline />
+      <Field label="Competitors" value={formData.competitors} onChange={v => updateField('competitors', v)} placeholder="e.g. Mint Bistro, The Delicatessen, Marlin Lodge" />
+      <Field label="Unique Selling Proposition" value={formData.usp} onChange={v => updateField('usp', v)} placeholder="e.g. Only restaurant in Lusaka with live braai and traditional Zambian music" multiline />
     </div>
   );
 }
@@ -511,6 +523,10 @@ function StepReview({ formData, niches, stepStatusMap }: { formData: FormData; n
       <ReviewSection title="Brand Voice" status={stepStatusMap['brand_voice']}>
         <ReviewRow label="Tone" value={formData.brandTone || '—'} />
         <ReviewRow label="Values" value={formData.brandValues || '—'} />
+        <ReviewRow label="Description" value={formData.brandDescription || '—'} />
+        <ReviewRow label="Target Audience" value={formData.targetAudience || '—'} />
+        <ReviewRow label="Competitors" value={formData.competitors || '—'} />
+        <ReviewRow label="USP" value={formData.usp || '—'} />
       </ReviewSection>
 
       <ReviewSection title="Services & Pricing" status={stepStatusMap['services_pricing']}>
