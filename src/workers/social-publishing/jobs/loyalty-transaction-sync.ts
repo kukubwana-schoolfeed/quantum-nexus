@@ -30,7 +30,7 @@ export async function processLoyaltyTransactionSync(job: Job<LoyaltyTransactionS
       await customerQueries.createLoyaltyTransaction(tenant_id, customer_id, {
         type: points_delta > 0 ? 'earn' : points_delta < 0 ? 'adjustment' : 'adjustment',
         points: points_delta,
-        balance_after: newBalance,
+        balance_after: newBalance ?? 0,
         description: reason ?? `Manual adjustment: ${points_delta > 0 ? '+' : ''}${points_delta} points`,
       });
 
@@ -79,7 +79,7 @@ export async function processLoyaltyTransactionSync(job: Job<LoyaltyTransactionS
         await customerQueries.createLoyaltyTransaction(tenant_id, customer.id, {
           type: 'expire',
           points: -expiryAmount,
-          balance_after: newBalance,
+          balance_after: newBalance ?? 0,
           description: `${INACTIVITY_THRESHOLD_DAYS}-day inactivity: ${expiryAmount} points expired`,
         });
 

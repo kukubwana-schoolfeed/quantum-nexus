@@ -345,7 +345,7 @@ export async function triggerWinBack(
       await db.customerQueries.createLoyaltyTransaction(tenantId, customerId, {
         type: 'earn',
         points: bonusPoints,
-        balance_after: newBalance,
+        balance_after: newBalance ?? 0,
         description: 'Win-back loyalty bonus',
       });
 
