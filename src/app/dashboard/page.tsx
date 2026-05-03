@@ -11,16 +11,16 @@ import { SkeletonGrid, SkeletonPanel } from '@/components/shared/Skeleton';
 import type { AnalyticsOverviewDTO, ReputationVelocityDTO, ClientHealthScoreDTO, PlatformHealthDTO, TrendDTO, BusinessAuditDTO, CustomerDTO, ContentPostDTO, SeoOverviewDTO, SprintModeConfigDTO } from '@/lib/api/schema';
 
 interface MissionControlData {
-  analytics: AnalyticsOverviewDTO;
-  velocity: ReputationVelocityDTO;
-  healthScore: ClientHealthScoreDTO;
-  platformHealth: PlatformHealthDTO;
-  trends: TrendDTO[];
+  analytics: AnalyticsOverviewDTO | null;
+  velocity: ReputationVelocityDTO | null;
+  healthScore: ClientHealthScoreDTO | null;
+  platformHealth: PlatformHealthDTO | null;
+  trends: TrendDTO[] | null;
   audit: BusinessAuditDTO | null;
-  customers: CustomerDTO[];
-  posts: ContentPostDTO[];
-  seo: SeoOverviewDTO;
-  sprint: SprintModeConfigDTO;
+  customers: CustomerDTO[] | null;
+  posts: ContentPostDTO[] | null;
+  seo: SeoOverviewDTO | null;
+  sprint: SprintModeConfigDTO | null;
 }
 
 export default function MissionControlPage(): JSX.Element {
@@ -65,7 +65,14 @@ export default function MissionControlPage(): JSX.Element {
     );
   }
 
-  const { analytics, platformHealth: healthMonitor, trends, audit, customers, posts, seo, sprint } = data;
+  const analytics = data.analytics ?? { revenueToday: 0, revenueThisWeek: 0, revenueThisMonth: 0, postsPublishedToday: 0, postsScheduled24h: 0, newCustomersToday: 0, totalIndexedPages: 0 } as AnalyticsOverviewDTO;
+  const seo = data.seo ?? { domainAuthority: 0, indexedPages: 0, backlinks: 0 } as SeoOverviewDTO;
+  const sprint = data.sprint ?? { active: false } as SprintModeConfigDTO;
+  const healthMonitor = data.platformHealth ?? { workers: {}, redis: 'unknown', supabase: 'unknown' } as PlatformHealthDTO;
+  const trends = data.trends ?? [];
+  const customers = data.customers ?? [];
+  const posts = data.posts ?? [];
+  const audit = data.audit;
 
   return (
     <div className="space-y-6">

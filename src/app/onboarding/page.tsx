@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { getSupabaseAuthClient } from '@/lib/auth/supabase-auth';
 import { useApi } from '@/lib/hooks/useApi';
 import ApiError from '@/components/shared/ApiError';
 import { SkeletonPanel } from '@/components/shared/Skeleton';
@@ -180,10 +181,17 @@ export default function OnboardingPage(): JSX.Element {
             <svg className="w-8 h-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
           </div>
           <h1 className="text-3xl font-bold text-white">You&apos;re All Set!</h1>
-          <p className="text-gray-400">Your business is now active on Quantum Nexus. Head to your dashboard to start creating content and growing your presence.</p>
-          <a href="/dashboard" className="inline-block px-6 py-3 bg-nexus-600 hover:bg-nexus-500 text-white font-medium rounded-lg transition-colors">
+          <p className="text-gray-400">Your business is now active on Quantum Nexus.</p>
+          <p className="text-nexus-400 font-medium">Your account is ready. Please sign in to access your dashboard.</p>
+          <button
+            onClick={async () => {
+              await getSupabaseAuthClient().auth.signOut();
+              window.location.href = '/login';
+            }}
+            className="inline-block px-6 py-3 bg-nexus-600 hover:bg-nexus-500 text-white font-medium rounded-lg transition-colors"
+          >
             Go to Dashboard
-          </a>
+          </button>
         </div>
       </div>
     );
