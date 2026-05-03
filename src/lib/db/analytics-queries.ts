@@ -27,7 +27,7 @@ export async function getLatestSnapshot(
     .eq('tenant_id', tenantId)
     .order('snapshot_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (error) {
     throw error;
@@ -174,7 +174,7 @@ export async function getDailyReport(
     .lte('snapshot_at', `${date}T23:59:59`)
     .order('snapshot_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (snapshotError) {
     throw snapshotError;

@@ -76,7 +76,7 @@ export async function getSeoTask(
     .select('*')
     .eq('tenant_id', tenantId)
     .eq('id', taskId)
-    .single();
+    .maybeSingle();
 
   if (error) {
     throw error;

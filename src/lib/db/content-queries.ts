@@ -88,7 +88,7 @@ export async function getPost(
     .select('*')
     .eq('tenant_id', tenantId)
     .eq('id', postId)
-    .single();
+    .maybeSingle();
 
   if (error) {
     throw error;

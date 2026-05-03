@@ -32,7 +32,7 @@ export async function getTenantById(
     .from('tenants')
     .select('*')
     .eq('id', tenantId)
-    .single();
+    .maybeSingle();
 
   if (error) throw new Error(error.message);
   return data;
@@ -53,7 +53,7 @@ export async function getTenantBySlug(
     .from('tenants')
     .select('*')
     .eq('slug', slug)
-    .single();
+    .maybeSingle();
 
   if (error) throw new Error(error.message);
   return data;
@@ -285,7 +285,7 @@ export async function getUserById(
     .from('platform_users')
     .select('*')
     .eq('id', userId)
-    .single();
+    .maybeSingle();
 
   if (error) throw new Error(error.message);
   return data;
@@ -306,7 +306,7 @@ export async function getUserByAuthId(
     .from('platform_users')
     .select('*')
     .eq('auth_user_id', authUserId)
-    .single();
+    .maybeSingle();
 
   if (error) throw new Error(error.message);
   return data;
@@ -329,7 +329,7 @@ export async function getResellerById(
     .from('resellers')
     .select('*')
     .eq('id', resellerId)
-    .single();
+    .maybeSingle();
 
   if (error) throw new Error(error.message);
   return data;

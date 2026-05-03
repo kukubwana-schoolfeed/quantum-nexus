@@ -76,7 +76,7 @@ export async function getLatestInvoice(
     .eq('tenant_id', tenantId)
     .order('invoice_date', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (error) {
     throw error;
@@ -102,7 +102,7 @@ export async function getPaymentStatus(
     .from('tenants')
     .select('status')
     .eq('tenant_id', tenantId)
-    .single();
+    .maybeSingle();
 
   if (tenantError) {
     throw tenantError;
@@ -121,9 +121,9 @@ export async function getPaymentStatus(
     .eq('status', 'paid')
     .order('paid_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
-  if (paidError && paidError.code !== 'PGRST116') {
+  if (paidError) {
     throw paidError;
   }
 
@@ -135,9 +135,9 @@ export async function getPaymentStatus(
     .eq('tenant_id', tenantId)
     .order('invoice_date', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
-  if (latestError && latestError.code !== 'PGRST116') {
+  if (latestError) {
     throw latestError;
   }
 
@@ -200,7 +200,7 @@ export async function getEncryptedKey(
     .select('*')
     .eq('tenant_id', tenantId)
     .eq('key_name', keyName)
-    .single();
+    .maybeSingle();
 
   if (error) {
     throw error;

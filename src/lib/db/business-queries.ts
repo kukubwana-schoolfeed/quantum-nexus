@@ -30,7 +30,7 @@ export async function getBusinessProfile(
     .from('business_profiles')
     .select('*')
     .eq('tenant_id', tenantId)
-    .single();
+    .maybeSingle();
 
   if (error) {
     throw new Error(`Failed to fetch business profile: ${error.message}`);
@@ -95,10 +95,18 @@ export async function getCompletenessScore(
     .from('tenants')
     .select('completeness_score, content_generation_unlocked, publishing_unlocked, analytics_unlocked, activated_at')
     .eq('id', tenantId)
-    .single();
+    .maybeSingle();
 
   if (tenantError) {
     throw new Error(`Failed to fetch tenant for completeness score: ${tenantError.message}`);
+  }
+
+  if (!tenant) {
+    return {
+      overall: 0,
+      sections: { profile: 0, api_keys: 0, onboarding: 0 },
+      unlocks: { content_generation: false, publishing: false, analytics: false },
+    };
   }
 
   // Fetch business profile to determine profile section score
@@ -234,7 +242,7 @@ export async function getKnowledgeBaseEntry(
     .select('*')
     .eq('tenant_id', tenantId)
     .eq('id', entryId)
-    .single();
+    .maybeSingle();
 
   if (error) {
     throw new Error(`Failed to fetch knowledge base entry: ${error.message}`);

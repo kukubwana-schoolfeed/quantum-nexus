@@ -149,13 +149,13 @@ export async function getCustomer(
     .select('*')
     .eq('tenant_id', tenantId)
     .eq('id', customerId)
-    .single();
+    .maybeSingle();
 
   if (error) {
-    if (error.code === 'PGRST116') return null;
     throw error;
   }
 
+  if (!data) return null;
   return mapRowToDTO(data as CustomerRow);
 }
 
@@ -337,9 +337,13 @@ export async function getLoyaltyBalance(
     .select('loyalty_points, tier')
     .eq('tenant_id', tenantId)
     .eq('id', customerId)
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
+
+  if (!data) {
+    return { points: 0, tier: 'standard' };
+  }
 
   const row = data as Pick<CustomerRow, 'loyalty_points' | 'tier'>;
   return {
@@ -433,14 +437,13 @@ export async function getBirthdayToken(
     .select('*')
     .eq('tenant_id', tenantId)
     .eq('token', token)
-    .single();
+    .maybeSingle();
 
   if (error) {
-    if (error.code === 'PGRST116') return null;
     throw error;
   }
 
-  return data as BirthdayTokenRow;
+  return data as BirthdayTokenRow | null;
 }
 
 /**
@@ -482,7 +485,7 @@ export async function adjustLoyaltyPoints(
   tenantId: string,
   customerId: string,
   pointsDelta: number,
-): Promise<number> {
+): Promise<number | null> {
   const supabase = getSupabaseAdmin();
 
   // Use an RPC-like pattern: read current, compute new, update
@@ -491,9 +494,11 @@ export async function adjustLoyaltyPoints(
     .select('loyalty_points, tier')
     .eq('tenant_id', tenantId)
     .eq('id', customerId)
-    .single();
+    .maybeSingle();
 
   if (fetchError) throw fetchError;
+
+  if (!customer) return null;
 
   const currentPoints = (customer as Pick<CustomerRow, 'loyalty_points' | 'tier'>).loyalty_points;
   const newPoints = Math.max(0, currentPoints + pointsDelta);

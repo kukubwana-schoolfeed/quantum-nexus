@@ -259,7 +259,7 @@ export async function getTenantDetailsAdmin(
     .from('tenants')
     .select('*')
     .eq('tenant_id', tenantId)
-    .single();
+    .maybeSingle();
 
   if (error) {
     throw error;

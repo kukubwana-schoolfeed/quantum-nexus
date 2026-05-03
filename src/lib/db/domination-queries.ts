@@ -81,14 +81,13 @@ export async function getLatestAudit(
     .eq('tenant_id', tenantId)
     .order('created_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (error) {
-    if (error.code === 'PGRST116') {
-      return null;
-    }
     throw error;
   }
+
+  if (!data) return null;
 
   const row = data as BusinessAuditRow;
 
@@ -476,14 +475,13 @@ export async function getLatestReputationVelocity(
     .eq('tenant_id', tenantId)
     .order('created_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (error) {
-    if (error.code === 'PGRST116') {
-      return null;
-    }
     throw error;
   }
+
+  if (!data) return null;
 
   const row = data as ReputationVelocityRow;
 
@@ -518,14 +516,13 @@ export async function getLatestClientHealthScore(
     .eq('tenant_id', tenantId)
     .order('created_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (error) {
-    if (error.code === 'PGRST116') {
-      return null;
-    }
     throw error;
   }
+
+  if (!data) return null;
 
   const row = data as ClientHealthScoreRow;
 
