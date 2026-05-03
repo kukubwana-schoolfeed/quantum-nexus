@@ -68,7 +68,7 @@ export default function MissionControlPage(): JSX.Element {
   const analytics = data.analytics ?? { revenueToday: 0, revenueThisWeek: 0, revenueThisMonth: 0, postsPublishedToday: 0, postsScheduled24h: 0, newCustomersToday: 0, totalIndexedPages: 0 } as AnalyticsOverviewDTO;
   const seo = data.seo ?? { domainAuthority: 0, indexedPages: 0, backlinks: 0 } as SeoOverviewDTO;
   const sprint = data.sprint ?? { active: false } as SprintModeConfigDTO;
-  const healthMonitor = data.platformHealth ?? { workers: {}, redis: 'unknown', supabase: 'unknown' } as PlatformHealthDTO;
+  const healthMonitor = data.platformHealth ?? { workers: { content: 'amber', publishing: 'amber', aiScene: 'amber', analytics: 'amber' }, redis: 'amber', supabase: 'amber', uptime: 0 } as PlatformHealthDTO;
   const trends = data.trends ?? [];
   const customers = data.customers ?? [];
   const posts = data.posts ?? [];
