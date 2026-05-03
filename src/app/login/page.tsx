@@ -16,7 +16,10 @@ export default function LoginPage(): JSX.Element {
 
     try {
       const supabase = getSupabaseAuthClient();
-      const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+      if (data.session?.access_token) {
+        document.cookie = `sb-access-token=${data.session.access_token}; path=/; max-age=3600; SameSite=Lax`;
+      }
 
       if (authError) {
         setError(authError.message);
