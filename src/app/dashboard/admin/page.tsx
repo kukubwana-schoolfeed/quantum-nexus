@@ -20,7 +20,7 @@ interface BusinessesResponse {
   tenants: TenantSummaryDTO[];
 }
 
-export default function AdminDashboardPage(): JSX.Element {
+export default function AdminDashboardPage(): JSX.Element | null {
   const router = useRouter();
   const { data: me, loading: meLoading } = useApi<AuthMeResponse>('/api/auth/me');
   const { data, loading, error, refetch } = useApi<BusinessesResponse>('/api/admin/businesses');
