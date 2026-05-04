@@ -1,15 +1,22 @@
 import { NextRequest } from 'next/server';
-import { getTenantId, apiResponse, apiError } from '@/lib/api/route-helper';
-import { MOCK_DATA } from '@/lib/api/mock-data';
+import { getTenantId, apiResponse } from '@/lib/api/route-helper';
+import type { AppRevenueDTO, AppChurnDTO } from '@/lib/api/schema';
 
-export async function GET(req: NextRequest) {
-  try {
-    const tid = getTenantId(req);
-    const revenue = MOCK_DATA.appPaymentIntelligence.getRevenue(tid);
-    const churnRate = MOCK_DATA.appPaymentIntelligence.getChurnRate(tid);
-    const topProducts = MOCK_DATA.appPaymentIntelligence.getTopProducts(tid);
-    return apiResponse({ revenue, churnRate, topProducts });
-  } catch (e) {
-    return apiError(e instanceof Error ? e.message : 'Failed to load app revenue');
-  }
+const zeroedRevenue: AppRevenueDTO = {
+  today: 0,
+  thisWeek: 0,
+  thisMonth: 0,
+};
+
+const zeroedChurn: AppChurnDTO = {
+  rate: 0,
+  trend: 'stable',
+};
+
+export async function GET(_req: NextRequest) {
+  return apiResponse({
+    revenue: zeroedRevenue,
+    churnRate: zeroedChurn,
+    topProducts: [] as Array<{ name: string; revenue: number; growth: number }>,
+  });
 }

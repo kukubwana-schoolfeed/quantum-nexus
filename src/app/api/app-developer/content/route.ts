@@ -1,15 +1,40 @@
 import { NextRequest } from 'next/server';
-import { getTenantId, apiResponse, apiError } from '@/lib/api/route-helper';
-import { MOCK_DATA } from '@/lib/api/mock-data';
+import { getTenantId, apiResponse } from '@/lib/api/route-helper';
+import { getSupabaseAdminClient } from '@/lib/auth/supabase-auth';
+import type { GeneratedDescriptionDTO, ReleaseNotesDTO, ScreenshotGenerationDTO } from '@/lib/api/schema';
+
+const emptyDescription: GeneratedDescriptionDTO = { content: '' };
+const emptyReleaseNotes: ReleaseNotesDTO = { content: '', version: '' };
+const emptyScreenshots: ScreenshotGenerationDTO = { urls: [] };
 
 export async function GET(req: NextRequest) {
   try {
     const tid = getTenantId(req);
-    const releaseNotes = MOCK_DATA.appContentGenerator.generateReleaseNotes(tid, '1.2.0', []);
-    const description = MOCK_DATA.appContentGenerator.generateDescription(tid, 'ap1');
-    const screenshots = MOCK_DATA.appContentGenerator.generateScreenshots(tid, 'ap1', {});
-    return apiResponse({ releaseNotes, description, screenshots });
-  } catch (e) {
-    return apiError(e instanceof Error ? e.message : 'Failed to load app content');
+    const supabase = getSupabaseAdminClient();
+
+    const { data, error } = await supabase
+      .from('apps')
+      .select('id, name')
+      .eq('tenant_id', tid)
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    const description: GeneratedDescriptionDTO = data
+      ? { content: data.name }
+      : emptyDescription;
+
+    return apiResponse({
+      releaseNotes: emptyReleaseNotes,
+      description,
+      screenshots: emptyScreenshots,
+    });
+  } catch {
+    return apiResponse({
+      releaseNotes: emptyReleaseNotes,
+      description: emptyDescription,
+      screenshots: emptyScreenshots,
+    });
   }
 }

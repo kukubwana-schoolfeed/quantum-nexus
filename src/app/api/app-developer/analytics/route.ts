@@ -1,14 +1,40 @@
 import { NextRequest } from 'next/server';
-import { getTenantId, apiResponse, apiError } from '@/lib/api/route-helper';
-import { MOCK_DATA } from '@/lib/api/mock-data';
+import { getTenantId, apiResponse } from '@/lib/api/route-helper';
+import { getSupabaseAdminClient } from '@/lib/auth/supabase-auth';
+import type { AppAnalyticsOverviewDTO, AppRevenueDTO } from '@/lib/api/schema';
+
+const zeroedOverview: AppAnalyticsOverviewDTO = {
+  downloads: 0,
+  activeUsers: 0,
+  revenue: 0,
+  crashRate: 0,
+};
 
 export async function GET(req: NextRequest) {
   try {
     const tid = getTenantId(req);
-    const overview = MOCK_DATA.appAnalyticsDashboard.getOverview(tid);
-    const revenueBreakdown = MOCK_DATA.appAnalyticsDashboard.getRevenueBreakdown(tid);
+    const supabase = getSupabaseAdminClient();
+
+    const { data, error } = await supabase
+      .from('apps')
+      .select('downloads')
+      .eq('tenant_id', tid);
+
+    if (error) throw error;
+
+    const totalDownloads = (data ?? []).reduce((s: number, r: Record<string, unknown>) => s + ((r.downloads as number) ?? 0), 0);
+
+    const overview: AppAnalyticsOverviewDTO = {
+      downloads: totalDownloads,
+      activeUsers: 0,
+      revenue: 0,
+      crashRate: 0,
+    };
+
+    const revenueBreakdown: AppRevenueDTO[] = [];
+
     return apiResponse({ overview, revenueBreakdown });
-  } catch (e) {
-    return apiError(e instanceof Error ? e.message : 'Failed to load app analytics');
+  } catch {
+    return apiResponse({ overview: zeroedOverview, revenueBreakdown: [] as AppRevenueDTO[] });
   }
 }
