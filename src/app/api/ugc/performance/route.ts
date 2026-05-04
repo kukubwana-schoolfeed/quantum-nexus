@@ -1,14 +1,20 @@
 import { NextRequest } from 'next/server';
-import { getTenantId, apiResponse, apiError } from '@/lib/api/route-helper';
-import { MOCK_DATA } from '@/lib/api/mock-data';
+import { apiResponse } from '@/lib/api/route-helper';
 
 export async function GET(req: NextRequest) {
-  try {
-    const tid = getTenantId(req);
-    const performance = MOCK_DATA.ugcPerformanceFeedback.getPerformance(tid, 'clip1');
-    const topPerforming = MOCK_DATA.ugcPerformanceFeedback.getTopPerforming(tid, {});
-    return apiResponse({ performance, topPerforming });
-  } catch (e) {
-    return apiError(e instanceof Error ? e.message : 'Failed to load performance data');
-  }
+  // No performance table exists — return hardcoded defaults
+  const performance = {
+    views: 0,
+    engagement: 0,
+    saves: 0,
+    shares: 0,
+  };
+
+  const suggestedRates = {
+    minRate: 0,
+    suggestedRate: 0,
+    maxRate: 0,
+  };
+
+  return apiResponse({ performance, suggestedRates });
 }

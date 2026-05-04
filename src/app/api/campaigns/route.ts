@@ -1,12 +1,34 @@
 import { NextRequest } from 'next/server';
 import { getTenantId, apiResponse, apiError } from '@/lib/api/route-helper';
-import { MOCK_DATA } from '@/lib/api/mock-data';
+import { getSupabaseAdminClient } from '@/lib/auth/supabase-auth';
 
 export async function GET(req: NextRequest) {
   try {
-    const result = MOCK_DATA.seasonalCampaignEngine.getCampaigns(getTenantId(req));
+    const tenantId = getTenantId(req);
+    const supabase = getSupabaseAdminClient();
+
+    const { data, error } = await supabase
+      .from('sales_campaigns')
+      .select('id, name, status, targets_count, responses_count')
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[campaigns] DB error:', error.message);
+      return apiResponse([]);
+    }
+
+    const result = (data ?? []).map((row: Record<string, unknown>) => ({
+      id: row.id,
+      name: row.name,
+      status: row.status,
+      targetsCount: row.targets_count,
+      responsesCount: row.responses_count,
+    }));
+
     return apiResponse(result);
   } catch (e) {
-    return apiError(e instanceof Error ? e.message : 'Failed to load campaigns');
+    console.error('[campaigns] Unexpected error:', e);
+    return apiResponse([]);
   }
 }

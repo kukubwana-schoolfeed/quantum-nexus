@@ -1,12 +1,31 @@
 import { NextRequest } from 'next/server';
 import { getTenantId, apiResponse, apiError } from '@/lib/api/route-helper';
-import { MOCK_DATA } from '@/lib/api/mock-data';
+import { getSupabaseAdminClient } from '@/lib/auth/supabase-auth';
+import type { PendingAccountDTO } from '@/lib/api/schema';
 
 export async function GET(req: NextRequest) {
   try {
-    const result = MOCK_DATA.adminApprovalGate.getPendingAccounts(getTenantId(req));
+    const supabase = getSupabaseAdminClient();
+    const { data, error } = await supabase
+      .from('tenants')
+      .select('id, business_name, created_at, tier')
+      .eq('status', 'pending_approval');
+
+    if (error) {
+      console.error('[admin/approvals] DB error:', error.message);
+      return apiResponse<PendingAccountDTO[]>([]);
+    }
+
+    const result: PendingAccountDTO[] = (data ?? []).map((row) => ({
+      id: row.id,
+      businessName: row.business_name,
+      submittedAt: row.created_at,
+      tier: row.tier,
+    }));
+
     return apiResponse(result);
   } catch (e) {
-    return apiError(e instanceof Error ? e.message : 'Failed to load pending approvals');
+    console.error('[admin/approvals] Unexpected error:', e);
+    return apiResponse<PendingAccountDTO[]>([]);
   }
 }
