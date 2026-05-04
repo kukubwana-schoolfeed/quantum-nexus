@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useApi } from '@/lib/hooks/useApi';
 
 /**
  * SidebarItem — Defines a single navigation item in the dashboard sidebar.
@@ -13,6 +14,13 @@ interface SidebarItem {
   href: string;
   icon: string;
   group: string;
+}
+
+interface AuthMeResponse {
+  sub: string | null;
+  tenant_id: string | null;
+  role: string | null;
+  tier: string | null;
 }
 
 /**
@@ -65,6 +73,8 @@ const NAV_ITEMS: SidebarItem[] = [
  */
 export default function Sidebar(): JSX.Element {
   const pathname = usePathname();
+  const { data: me } = useApi<AuthMeResponse>('/api/auth/me');
+  const isAdmin = me?.tier === 'internal';
 
   const grouped = NAV_ITEMS.reduce<Record<string, SidebarItem[]>>((acc, item) => {
     if (!acc[item.group]) acc[item.group] = [];
@@ -103,6 +113,24 @@ export default function Sidebar(): JSX.Element {
             })}
           </div>
         ))}
+        {isAdmin && (
+          <div className="mb-4 border-t border-gray-800 pt-4">
+            <p className="px-4 py-1 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              Admin
+            </p>
+            <Link
+              href="/dashboard/admin"
+              className={`flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
+                pathname === '/dashboard/admin'
+                  ? 'bg-nexus-700/30 text-white border-r-2 border-nexus-400'
+                  : 'hover:bg-gray-800/50 hover:text-white'
+              }`}
+            >
+              <span className="text-base">Shield</span>
+              <span>Admin</span>
+            </Link>
+          </div>
+        )}
       </nav>
     </aside>
   );
