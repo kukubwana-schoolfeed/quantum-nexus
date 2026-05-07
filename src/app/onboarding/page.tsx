@@ -235,9 +235,9 @@ export default function OnboardingPage(): JSX.Element {
             <span className="text-gray-400">Completeness</span>
             <span className="text-nexus-400 font-semibold">{score.overall}%</span>
             <div className="flex gap-3">
-              <span className="text-gray-500">Content: <StatusBadge status={score.unlocks.content_generation ? 'active' : 'held'} /></span>
-              <span className="text-gray-500">Publish: <StatusBadge status={score.unlocks.publishing ? 'active' : 'held'} /></span>
-              <span className="text-gray-500">Analytics: <StatusBadge status={score.unlocks.analytics ? 'active' : 'held'} /></span>
+              <span className="text-gray-500">Content: <StatusBadge status={score?.unlocks?.content_generation ? 'active' : 'held'} /></span>
+              <span className="text-gray-500">Publish: <StatusBadge status={score?.unlocks?.publishing ? 'active' : 'held'} /></span>
+              <span className="text-gray-500">Analytics: <StatusBadge status={score?.unlocks?.analytics ? 'active' : 'held'} /></span>
             </div>
           </div>
         )}
