@@ -210,7 +210,7 @@ export async function readComments(params: YouTubeReadCommentsParams): Promise<Y
         text: (snip?.textDisplay ?? '') as string,
         author: {
           name: (snip?.authorDisplayName ?? '') as string,
-          channelId: (snip?.authorChannelId?.value ?? '') as string,
+          channelId: ((snip?.authorChannelId as any)?.value ?? '') as string,
         },
         publishedAt: (snip?.publishedAt ?? '') as string,
         likeCount: (snip?.likeCount ?? 0) as number,
