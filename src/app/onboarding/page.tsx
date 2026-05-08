@@ -411,10 +411,10 @@ function StepBrandVoice({ formData, updateField }: { formData: FormData; updateF
           className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-nexus-500 resize-none"
         />
       </div>
-      <Field label="Brand Description" value={formData.brandDescription} onChange={v => updateField('brandDescription', v)} placeholder="e.g. A modern Zambian restaurant celebrating local culinary heritage" multiline />
-      <Field label="Target Audience" value={formData.targetAudience} onChange={v => updateField('targetAudience', v)} placeholder="e.g. Young professionals and families aged 25-50 in Lusaka" multiline />
-      <Field label="Competitors" value={formData.competitors} onChange={v => updateField('competitors', v)} placeholder="e.g. Mint Bistro, The Delicatessen, Marlin Lodge" />
-      <Field label="Unique Selling Proposition" value={formData.usp} onChange={v => updateField('usp', v)} placeholder="e.g. Only restaurant in Lusaka with live braai and traditional Zambian music" multiline />
+      <Field label="Brand Description" value={formData.brandDescription} onChange={v => updateField('brandDescription', v)} placeholder="e.g. Lusaka's premium custom printing studio. We make laptop wraps, phone covers and portraits that reflect your personality" multiline />
+      <Field label="Target Audience" value={formData.targetAudience} onChange={v => updateField('targetAudience', v)} placeholder="e.g. Students and young professionals aged 18-35 in Lusaka" />
+      <Field label="Unique Selling Point" value={formData.usp} onChange={v => updateField('usp', v)} placeholder="e.g. Same day turnaround, premium quality, 24/7 ordering via WhatsApp" />
+      <Field label="Competitors" value={formData.competitors} onChange={v => updateField('competitors', v)} placeholder="e.g. Generic print shops in Lusaka with no online presence or personal touch" />
     </div>
   );
 }
@@ -534,7 +534,7 @@ function StepReview({ formData, niches, stepStatusMap }: { formData: FormData; n
         <ReviewRow label="Description" value={formData.brandDescription || '—'} />
         <ReviewRow label="Target Audience" value={formData.targetAudience || '—'} />
         <ReviewRow label="Competitors" value={formData.competitors || '—'} />
-        <ReviewRow label="USP" value={formData.usp || '—'} />
+        <ReviewRow label="Unique Selling Point" value={formData.usp || '—'} />
       </ReviewSection>
 
       <ReviewSection title="Services & Pricing" status={stepStatusMap['services_pricing']}>
