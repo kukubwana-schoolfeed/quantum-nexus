@@ -1,23 +1,16 @@
 /**
  * TIKTOK_DEVELOPER — TikTok video posting and engagement integration
  *
- * PURPOSE: Video publishing, comment reading and replying,
- * video analytics, trending sound data for trend-intelligence-engine.
- *
  * AUTH METHOD: OAuth 2.0. Business connects TikTok Business Account via OAuth.
  * Access token stored encrypted in Supabase.
- * TOKEN REFRESH: TikTok requires manual re-authentication. No background refresh.
- * TOKEN EXPIRY ALERT: 72-hour advance alert with one-click reconnect button.
- * ELEVATED ACCESS: Content Posting API requires application to TikTok for
- * elevated access. Guide business through this during onboarding.
+ * Token retrieved via getBusinessKey(tenantId, 'tiktok_oauth_token', 'tiktok').
  *
  * RATE LIMITS: Per TikTok developer documentation. Implement backoff on 429.
- * WORKER: Worker 2
- * PHASE: 3 (real connection)
- * STATUS: placeholder
+ * ELEVATED ACCESS: Content Posting API requires application to TikTok for
+ * elevated access.
  */
 
-import { mockId, mockTimestamp, mockInt, mockPick, MOCK_CONTENT } from '../mock-data';
+import { getBusinessKey } from '@/lib/security/key-manager';
 
 // --- Types ---
 
@@ -79,86 +72,153 @@ export interface TikTokTrendingSoundsResponse {
   }>;
 }
 
-const MOCK_TIKTOK_USERS = [
-  { username: 'mwansa_creative', id: '7012345678901234567' },
-  { username: 'joseph_vibes', id: '7012345678901234568' },
-  { username: 'grace_kitchen', id: '7012345678901234569' },
-  { username: 'david_fitness', id: '7012345678901234570' },
-  { username: 'chimwe_beats', id: '7012345678901234571' },
-];
-
-const MOCK_SOUNDS = [
-  { title: 'Original Sound - Morning Grind', author: 'hustle_daily' },
-  { title: 'Amapiano Beat Mix 2025', author: 'dj_zambian' },
-  { title: 'Motivational Speech - Keep Going', author: 'inspire_africa' },
-  { title: 'Cooking ASMR Background', author: 'kitchen_sounds' },
-  { title: 'Lusaka Nights - Afrobeat', author: 'zmb_producer' },
-];
-
 // --- Main exports ---
 
 export async function uploadVideo(params: TikTokUploadParams): Promise<TikTokUploadResponse> {
-  // PLACEHOLDER: TIKTOK_DEVELOPER — TikTok video posting and engagement
-  // REAL INTEGRATION: /src/lib/integrations/social/tiktok.ts
-  // PHASE: 3
-  return {
-    videoId: mockId('tt', 19),
-    status: 'published',
+  const key = await getBusinessKey(params.tenantId, 'tiktok_oauth_token', 'tiktok');
+  if (!key) throw new Error('TikTok OAuth token not found for tenant');
+
+  const body = {
+    post_info: {
+      title: params.caption,
+      description: [params.caption, ...params.hashtags.map((h) => `#${h}`)].join(' '),
+      privacy_level: 'PUBLIC_TO_EVERYONE',
+    },
+    source_info: {
+      source: 'PULL_FROM_URL',
+      video_url: params.videoUrl,
+    },
   };
+
+  try {
+    const res = await fetch('https://open.tiktokapis.com/v2/post/publish/video/init/', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${key.value}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const errBody = await res.text();
+      throw new Error(`TikTok upload failed (${res.status}): ${errBody}`);
+    }
+    const data = await res.json();
+    return {
+      videoId: data.data?.publish_id ?? '',
+      status: 'processing',
+    };
+  } catch (err) {
+    throw new Error(`TikTok upload failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 export async function readComments(params: TikTokReadCommentsParams): Promise<TikTokCommentsResponse> {
-  // PLACEHOLDER: TIKTOK_DEVELOPER — Comment reading
-  // REAL INTEGRATION: /src/lib/integrations/social/tiktok.ts
-  // PHASE: 3
-  const limit = params.limit || 10;
-  const comments = [];
-  for (let i = 0; i < Math.min(limit, 5); i++) {
-    comments.push({
-      id: mockId('tcmt', 14),
-      text: mockPick(MOCK_CONTENT.reviews),
-      author: mockPick(MOCK_TIKTOK_USERS),
-      createdTime: mockTimestamp(mockInt(1, 2880)),
+  const key = await getBusinessKey(params.tenantId, 'tiktok_oauth_token', 'tiktok');
+  if (!key) throw new Error('TikTok OAuth token not found for tenant');
+
+  const body = {
+    video_id: params.videoId,
+    max_count: params.limit ?? 10,
+  };
+
+  try {
+    const res = await fetch('https://open.tiktokapis.com/v2/video/comment/list/', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${key.value}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
     });
+    if (!res.ok) {
+      const errBody = await res.text();
+      throw new Error(`TikTok read comments failed (${res.status}): ${errBody}`);
+    }
+    const data = await res.json();
+    const comments = (data.data?.comments ?? []).map((c: Record<string, unknown>) => ({
+      id: c.id as string,
+      text: c.text as string,
+      author: {
+        username: (c.user as Record<string, string>)?.display_name ?? '',
+        id: (c.user as Record<string, string>)?.open_id ?? '',
+      },
+      createdTime: c.create_time as string,
+    }));
+    return { comments };
+  } catch (err) {
+    throw new Error(`TikTok read comments failed: ${err instanceof Error ? err.message : String(err)}`);
   }
-  return { comments };
 }
 
 export async function replyToComment(params: TikTokReplyCommentParams): Promise<{ commentId: string; status: 'sent' | 'failed' }> {
-  // PLACEHOLDER: TIKTOK_DEVELOPER — Comment reply
-  // REAL INTEGRATION: /src/lib/integrations/social/tiktok.ts
-  // PHASE: 3
-  return { commentId: mockId('trply', 14), status: 'sent' };
+  const key = await getBusinessKey(params.tenantId, 'tiktok_oauth_token', 'tiktok');
+  if (!key) throw new Error('TikTok OAuth token not found for tenant');
+
+  const body = {
+    comment_id: params.commentId,
+    text: params.message,
+  };
+
+  try {
+    const res = await fetch('https://open.tiktokapis.com/v2/video/comment/reply/', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${key.value}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const errBody = await res.text();
+      throw new Error(`TikTok reply failed (${res.status}): ${errBody}`);
+    }
+    const data = await res.json();
+    return { commentId: data.data?.comment?.id ?? params.commentId, status: 'sent' };
+  } catch (err) {
+    throw new Error(`TikTok reply failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 export async function getAnalytics(params: TikTokAnalyticsParams): Promise<TikTokAnalyticsResponse> {
-  // PLACEHOLDER: TIKTOK_DEVELOPER — Video analytics
-  // REAL INTEGRATION: /src/lib/integrations/social/tiktok.ts
-  // PHASE: 3
-  return {
-    metrics: {
-      video_views: mockInt(500, 50000),
-      video_likes: mockInt(50, 5000),
-      video_comments: mockInt(5, 500),
-      video_shares: mockInt(10, 1500),
-      video_favorites: mockInt(20, 2000),
-      profile_visits: mockInt(30, 800),
-      follower_count: mockInt(200, 15000),
-    },
+  const key = await getBusinessKey(params.tenantId, 'tiktok_oauth_token', 'tiktok');
+  if (!key) throw new Error('TikTok OAuth token not found for tenant');
+
+  const body = {
+    filters: {},
+    dimensions: [],
+    metrics: params.metrics,
+    start_date: new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0],
+    end_date: new Date().toISOString().split('T')[0],
   };
+
+  try {
+    const res = await fetch('https://open.tiktokapis.com/v2/video/query/', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${key.value}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const errBody = await res.text();
+      throw new Error(`TikTok analytics failed (${res.status}): ${errBody}`);
+    }
+    const data = await res.json();
+    const metrics: Record<string, number> = {};
+    const vid = data.data?.videos?.[0];
+    if (vid) {
+      for (const m of params.metrics) {
+        metrics[m] = typeof vid[m] === 'number' ? vid[m] : 0;
+      }
+    }
+    return { metrics };
+  } catch (err) {
+    throw new Error(`TikTok analytics failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 export async function getTrendingSounds(params: TikTokTrendingSoundsParams): Promise<TikTokTrendingSoundsResponse> {
-  // PLACEHOLDER: TIKTOK_DEVELOPER — Trending sounds data
-  // REAL INTEGRATION: /src/lib/integrations/social/tiktok.ts
-  // PHASE: 3
-  const limit = params.limit || 5;
-  return {
-    sounds: MOCK_SOUNDS.slice(0, limit).map((s) => ({
-      id: mockId('snd', 12),
-      title: s.title,
-      author: s.author,
-      playCount: mockInt(50000, 5000000),
-    })),
-  };
+  throw new Error('TikTok trending sounds API is not publicly available');
 }

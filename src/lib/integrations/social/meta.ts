@@ -1,26 +1,16 @@
 /**
  * META_GRAPH_API — Facebook/Instagram posting and engagement integration
  *
- * PURPOSE: Facebook Page posting, Instagram Business posting,
- * comment reading and replying, Instagram DM handling,
- * Facebook Messenger handling, page insights.
- *
  * AUTH METHOD: OAuth 2.0. Business connects via Facebook OAuth flow.
  * Long-lived Page Access Token stored encrypted in Supabase.
- * TOKEN REFRESH: 60-day tokens, auto-refresh 10 days before expiry.
- * TOKEN EXPIRY ALERT: 72-hour advance notification if refresh fails.
+ * Token retrieved via getBusinessKey(tenantId, 'meta_oauth_token', 'facebook').
  *
  * RATE LIMITS: 200 calls/hour per access token. System never exceeds 150/hour.
- * Queue throttling enforced in Worker 2.
  * SCOPE REQUIRED: pages_manage_posts, pages_read_engagement, instagram_basic,
  * instagram_content_publish, pages_messaging, instagram_manage_messages
- *
- * WORKER: Worker 2
- * PHASE: 3 (real connection)
- * STATUS: placeholder
  */
 
-import { mockId, mockTimestamp, mockInt, mockPick, MOCK_CONTENT } from '../mock-data';
+import { getBusinessKey } from '@/lib/security/key-manager';
 
 // --- Types ---
 
@@ -82,69 +72,132 @@ export interface MetaInsightsResponse {
   metrics: Record<string, number>;
 }
 
-const MOCK_AUTHORS = [
-  { name: 'Mwansa Chanda', id: '100089123456789' },
-  { name: 'Joseph Phiri', id: '100089234567890' },
-  { name: 'Grace Tembo', id: '100089345678901' },
-  { name: 'David Banda', id: '100089456789012' },
-  { name: 'Chimwe Mulenga', id: '100089567890123' },
-];
-
 // --- Main exports ---
 
 export async function post(params: MetaPostParams): Promise<MetaPostResponse> {
-  // PLACEHOLDER: META_GRAPH_API — Facebook/Instagram posting and engagement
-  // REAL INTEGRATION: /src/lib/integrations/social/meta.ts
-  // PHASE: 3
-  return {
-    postId: mockId('fb', 16),
-    status: 'published',
-  };
+  const key = await getBusinessKey(params.tenantId, 'meta_oauth_token', 'facebook');
+  if (!key) throw new Error('Meta OAuth token not found for tenant');
+
+  const url = new URL(`https://graph.facebook.com/v18.0/${params.pageId}/feed`);
+  url.searchParams.set('message', params.content);
+  url.searchParams.set('access_token', key.value);
+  if (params.mediaUrl) url.searchParams.set('link', params.mediaUrl);
+  if (params.linkUrl) url.searchParams.set('link', params.linkUrl);
+
+  try {
+    const res = await fetch(url.toString(), { method: 'POST' });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Facebook post failed (${res.status}): ${body}`);
+    }
+    const data = await res.json();
+    return { postId: data.id, status: 'published' };
+  } catch (err) {
+    throw new Error(`Facebook post failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 export async function readComments(params: MetaReadCommentsParams): Promise<MetaCommentsResponse> {
-  // PLACEHOLDER: META_GRAPH_API — Comment reading
-  // REAL INTEGRATION: /src/lib/integrations/social/meta.ts
-  // PHASE: 3
-  const limit = params.limit || 10;
-  const comments = [];
-  for (let i = 0; i < Math.min(limit, 5); i++) {
-    comments.push({
-      id: mockId('cmt', 14),
-      message: mockPick(MOCK_CONTENT.reviews),
-      from: mockPick(MOCK_AUTHORS),
-      createdTime: mockTimestamp(mockInt(1, 1440)),
-    });
+  const key = await getBusinessKey(params.tenantId, 'meta_oauth_token', 'facebook');
+  if (!key) throw new Error('Meta OAuth token not found for tenant');
+
+  const url = new URL(`https://graph.facebook.com/v18.0/${params.postId}/comments`);
+  url.searchParams.set('access_token', key.value);
+  url.searchParams.set('limit', String(params.limit ?? 10));
+  url.searchParams.set('fields', 'id,message,from{name,id},created_time');
+
+  try {
+    const res = await fetch(url.toString());
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Facebook read comments failed (${res.status}): ${body}`);
+    }
+    const data = await res.json();
+    const comments = (data.data ?? []).map((c: Record<string, unknown>) => ({
+      id: c.id as string,
+      message: c.message as string,
+      from: { name: (c.from as Record<string, string>)?.name ?? '', id: (c.from as Record<string, string>)?.id ?? '' },
+      createdTime: c.created_time as string,
+    }));
+    return { comments };
+  } catch (err) {
+    throw new Error(`Facebook read comments failed: ${err instanceof Error ? err.message : String(err)}`);
   }
-  return { comments };
 }
 
 export async function replyToComment(params: MetaReplyCommentParams): Promise<{ commentId: string; status: 'sent' | 'failed' }> {
-  // PLACEHOLDER: META_GRAPH_API — Comment reply
-  // REAL INTEGRATION: /src/lib/integrations/social/meta.ts
-  // PHASE: 3
-  return { commentId: mockId('reply', 14), status: 'sent' };
+  const key = await getBusinessKey(params.tenantId, 'meta_oauth_token', 'facebook');
+  if (!key) throw new Error('Meta OAuth token not found for tenant');
+
+  const url = new URL(`https://graph.facebook.com/v18.0/${params.commentId}/replies`);
+  url.searchParams.set('message', params.message);
+  url.searchParams.set('access_token', key.value);
+
+  try {
+    const res = await fetch(url.toString(), { method: 'POST' });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Facebook reply failed (${res.status}): ${body}`);
+    }
+    const data = await res.json();
+    return { commentId: data.id, status: 'sent' };
+  } catch (err) {
+    throw new Error(`Facebook reply failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 export async function handleDm(params: MetaHandleDmParams): Promise<MetaDmResponse> {
-  // PLACEHOLDER: META_GRAPH_API — DM handling
-  // REAL INTEGRATION: /src/lib/integrations/social/meta.ts
-  // PHASE: 3
-  return { messageId: mockId('mid', 16), status: 'sent' };
+  const key = await getBusinessKey(params.tenantId, 'meta_oauth_token', 'facebook');
+  if (!key) throw new Error('Meta OAuth token not found for tenant');
+
+  const url = new URL('https://graph.facebook.com/v18.0/me/messages');
+  const body = {
+    recipient: { id: params.conversationId },
+    message: { text: params.message },
+    access_token: key.value,
+  };
+
+  try {
+    const res = await fetch(url.toString(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const errBody = await res.text();
+      throw new Error(`Facebook DM failed (${res.status}): ${errBody}`);
+    }
+    const data = await res.json();
+    return { messageId: data.message_id, status: 'sent' };
+  } catch (err) {
+    throw new Error(`Facebook DM failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 export async function getInsights(params: MetaInsightsParams): Promise<MetaInsightsResponse> {
-  // PLACEHOLDER: META_GRAPH_API — Page insights
-  // REAL INTEGRATION: /src/lib/integrations/social/meta.ts
-  // PHASE: 3
-  return {
-    metrics: {
-      page_impressions: mockInt(2500, 18000),
-      page_engaged_users: mockInt(150, 1200),
-      page_post_engagements: mockInt(80, 900),
-      page_follows: mockInt(20, 200),
-      page_views_total: mockInt(500, 5000),
-      post_reactions_by_type_total: mockInt(50, 600),
-    },
-  };
+  const key = await getBusinessKey(params.tenantId, 'meta_oauth_token', 'facebook');
+  if (!key) throw new Error('Meta OAuth token not found for tenant');
+
+  const url = new URL(`https://graph.facebook.com/v18.0/${params.pageId}/insights`);
+  url.searchParams.set('metric', params.metrics.join(','));
+  url.searchParams.set('access_token', key.value);
+  if (params.since) url.searchParams.set('since', params.since);
+  if (params.until) url.searchParams.set('until', params.until);
+
+  try {
+    const res = await fetch(url.toString());
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Facebook insights failed (${res.status}): ${body}`);
+    }
+    const data = await res.json();
+    const metrics: Record<string, number> = {};
+    for (const item of data.data ?? []) {
+      const val = item.values?.[item.values.length - 1]?.value;
+      metrics[item.name] = typeof val === 'number' ? val : 0;
+    }
+    return { metrics };
+  } catch (err) {
+    throw new Error(`Facebook insights failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
