@@ -170,6 +170,7 @@ export async function GET(
         if (pageData.data?.[0]) {
           metaPageId = pageData.data[0].id;
           metaPageName = pageData.data[0].name;
+          if (pageData.data[0].access_token) tokenData.accessToken = pageData.data[0].access_token;
         }
       } catch {
         // Continue without page ID rather than breaking the whole flow

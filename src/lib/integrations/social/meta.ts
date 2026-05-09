@@ -78,9 +78,11 @@ export async function post(params: MetaPostParams): Promise<MetaPostResponse> {
   const key = await getBusinessKey(params.tenantId, 'meta_oauth_token', 'facebook');
   if (!key) throw new Error('Meta OAuth token not found for tenant');
 
+  const tokenData = JSON.parse(key.value);
+  const accessToken = tokenData.accessToken;
   const url = new URL(`https://graph.facebook.com/v18.0/${params.pageId}/feed`);
   url.searchParams.set('message', params.content);
-  url.searchParams.set('access_token', key.value);
+  url.searchParams.set('access_token', accessToken);
   if (params.mediaUrl) url.searchParams.set('link', params.mediaUrl);
   if (params.linkUrl) url.searchParams.set('link', params.linkUrl);
 
@@ -102,7 +104,7 @@ export async function readComments(params: MetaReadCommentsParams): Promise<Meta
   if (!key) throw new Error('Meta OAuth token not found for tenant');
 
   const url = new URL(`https://graph.facebook.com/v18.0/${params.postId}/comments`);
-  url.searchParams.set('access_token', key.value);
+  url.searchParams.set('access_token', accessToken);
   url.searchParams.set('limit', String(params.limit ?? 10));
   url.searchParams.set('fields', 'id,message,from{name,id},created_time');
 
@@ -131,7 +133,7 @@ export async function replyToComment(params: MetaReplyCommentParams): Promise<{ 
 
   const url = new URL(`https://graph.facebook.com/v18.0/${params.commentId}/replies`);
   url.searchParams.set('message', params.message);
-  url.searchParams.set('access_token', key.value);
+  url.searchParams.set('access_token', accessToken);
 
   try {
     const res = await fetch(url.toString(), { method: 'POST' });
@@ -180,7 +182,7 @@ export async function getInsights(params: MetaInsightsParams): Promise<MetaInsig
 
   const url = new URL(`https://graph.facebook.com/v18.0/${params.pageId}/insights`);
   url.searchParams.set('metric', params.metrics.join(','));
-  url.searchParams.set('access_token', key.value);
+  url.searchParams.set('access_token', accessToken);
   if (params.since) url.searchParams.set('since', params.since);
   if (params.until) url.searchParams.set('until', params.until);
 
