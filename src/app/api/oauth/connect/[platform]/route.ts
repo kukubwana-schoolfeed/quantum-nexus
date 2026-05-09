@@ -18,7 +18,7 @@ const PLATFORM_CONFIGS: Record<Platform, { buildUrl: (state: string) => string }
   },
   google: {
     buildUrl: (state) =>
-      `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${REDIRECT_BASE}/api/auth/callback/google&scope=https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube https://www.googleapis.com/auth/analytics.readonly&state=${state}&response_type=code&access_type=offline&prompt=consent`,
+      `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${REDIRECT_BASE}/api/auth/callback/google&scope=https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/webmasters https://www.googleapis.com/auth/business.manage https://www.googleapis.com/auth/yt-analytics.readonly&state=${state}&response_type=code&access_type=offline&prompt=consent`,
   },
   tiktok: {
     buildUrl: (state) =>

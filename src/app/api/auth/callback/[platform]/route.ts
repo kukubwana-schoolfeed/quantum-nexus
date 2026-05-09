@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { storeKey } from '@/lib/security/key-manager';
+import { storeKey, type KeyType } from '@/lib/security/key-manager';
 import { getSupabaseAdminClient } from '@/lib/auth/supabase-auth';
 import {
   META_APP_ID,
@@ -19,7 +19,7 @@ const SUCCESS_REDIRECT = `${REDIRECT_BASE}/dashboard/integrations?connected=true
 type Platform = 'meta' | 'google' | 'tiktok' | 'pinterest';
 
 interface PlatformTokenConfig {
-  keyType: string;
+  keyType: KeyType;
   platformId: string;
   redirectUri: string;
   exchangeToken: (code: string) => Promise<{ accessToken: string; refreshToken?: string; expiresAt: string }>;
@@ -167,7 +167,7 @@ export async function GET(
     });
 
     try {
-      await storeKey(tenantId, config.keyType as import('@/lib/security/key-manager').KeyType, tokenPayload, config.platformId);
+      await storeKey(tenantId, config.keyType, tokenPayload, config.platformId);
     } catch (err: unknown) {
       const pgError = err as { code?: string; message?: string };
       if (pgError.code === '23505') {
@@ -178,7 +178,7 @@ export async function GET(
           .eq('tenant_id', tenantId)
           .eq('key_type', config.keyType)
           .eq('platform_id', config.platformId);
-        await storeKey(tenantId, config.keyType as import('@/lib/security/key-manager').KeyType, tokenPayload, config.platformId);
+        await storeKey(tenantId, config.keyType, tokenPayload, config.platformId);
       } else {
         throw err;
       }
