@@ -77,9 +77,7 @@ export interface MetaInsightsResponse {
 export async function post(params: MetaPostParams): Promise<MetaPostResponse> {
   const key = await getBusinessKey(params.tenantId, 'meta_oauth_token', 'facebook');
   if (!key) throw new Error('Meta OAuth token not found for tenant');
-
-  const tokenData = JSON.parse(key.value);
-  const accessToken = tokenData.accessToken;
+  const { accessToken } = JSON.parse(key.value);
   const url = new URL(`https://graph.facebook.com/v18.0/${params.pageId}/feed`);
   url.searchParams.set('message', params.content);
   url.searchParams.set('access_token', accessToken);
@@ -102,7 +100,7 @@ export async function post(params: MetaPostParams): Promise<MetaPostResponse> {
 export async function readComments(params: MetaReadCommentsParams): Promise<MetaCommentsResponse> {
   const key = await getBusinessKey(params.tenantId, 'meta_oauth_token', 'facebook');
   if (!key) throw new Error('Meta OAuth token not found for tenant');
-
+  const { accessToken } = JSON.parse(key.value);
   const url = new URL(`https://graph.facebook.com/v18.0/${params.postId}/comments`);
   url.searchParams.set('access_token', accessToken);
   url.searchParams.set('limit', String(params.limit ?? 10));
@@ -130,7 +128,7 @@ export async function readComments(params: MetaReadCommentsParams): Promise<Meta
 export async function replyToComment(params: MetaReplyCommentParams): Promise<{ commentId: string; status: 'sent' | 'failed' }> {
   const key = await getBusinessKey(params.tenantId, 'meta_oauth_token', 'facebook');
   if (!key) throw new Error('Meta OAuth token not found for tenant');
-
+  const { accessToken } = JSON.parse(key.value);
   const url = new URL(`https://graph.facebook.com/v18.0/${params.commentId}/replies`);
   url.searchParams.set('message', params.message);
   url.searchParams.set('access_token', accessToken);
@@ -151,12 +149,12 @@ export async function replyToComment(params: MetaReplyCommentParams): Promise<{ 
 export async function handleDm(params: MetaHandleDmParams): Promise<MetaDmResponse> {
   const key = await getBusinessKey(params.tenantId, 'meta_oauth_token', 'facebook');
   if (!key) throw new Error('Meta OAuth token not found for tenant');
-
+  const { accessToken } = JSON.parse(key.value);
   const url = new URL('https://graph.facebook.com/v18.0/me/messages');
   const body = {
     recipient: { id: params.conversationId },
     message: { text: params.message },
-    access_token: key.value,
+    access_token: accessToken,
   };
 
   try {
@@ -179,7 +177,7 @@ export async function handleDm(params: MetaHandleDmParams): Promise<MetaDmRespon
 export async function getInsights(params: MetaInsightsParams): Promise<MetaInsightsResponse> {
   const key = await getBusinessKey(params.tenantId, 'meta_oauth_token', 'facebook');
   if (!key) throw new Error('Meta OAuth token not found for tenant');
-
+  const { accessToken } = JSON.parse(key.value);
   const url = new URL(`https://graph.facebook.com/v18.0/${params.pageId}/insights`);
   url.searchParams.set('metric', params.metrics.join(','));
   url.searchParams.set('access_token', accessToken);
