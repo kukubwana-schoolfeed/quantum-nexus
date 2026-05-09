@@ -160,6 +160,22 @@ export async function GET(
 
     const tokenData = await config.exchangeToken(code);
 
+    // Fetch Facebook Page ID for Meta platform
+    let metaPageId: string | undefined;
+    let metaPageName: string | undefined;
+    if (platform === 'meta') {
+      try {
+        const pageRes = await fetch(`https://graph.facebook.com/v18.0/me/accounts?access_token=${tokenData.accessToken}`);
+        const pageData = await pageRes.json();
+        if (pageData.data?.[0]) {
+          metaPageId = pageData.data[0].id;
+          metaPageName = pageData.data[0].name;
+        }
+      } catch {
+        // Continue without page ID rather than breaking the whole flow
+      }
+    }
+
     const tokenPayload = JSON.stringify({
       accessToken: tokenData.accessToken,
       refreshToken: tokenData.refreshToken ?? null,
@@ -184,6 +200,32 @@ export async function GET(
       }
     }
 
+    // Store additional Google keys (GSC, GA4, GBP) with the same token
+    if (platform === 'google') {
+      const googleKeyTypes: { keyType: KeyType; platformId: string }[] = [
+        { keyType: 'gsc_oauth_token', platformId: 'gsc' },
+        { keyType: 'ga4_oauth_token', platformId: 'ga4' },
+        { keyType: 'gbp_oauth_token', platformId: 'gbp' },
+      ];
+      for (const { keyType, platformId: pid } of googleKeyTypes) {
+        try {
+          await storeKey(tenantId, keyType, tokenPayload, pid);
+        } catch (err: unknown) {
+          const pgError = err as { code?: string; message?: string };
+          if (pgError.code === '23505') {
+            const supabase = getSupabaseAdminClient();
+            await supabase
+              .from('encrypted_keys')
+              .delete()
+              .eq('tenant_id', tenantId)
+              .eq('key_type', keyType)
+              .eq('platform_id', pid);
+            await storeKey(tenantId, keyType, tokenPayload, pid);
+          }
+        }
+      }
+    }
+
     const supabase = getSupabaseAdminClient();
     await supabase
       .from('connected_platforms')
@@ -194,6 +236,8 @@ export async function GET(
           connected: true,
           token_expires_at: tokenData.expiresAt,
           updated_at: new Date().toISOString(),
+          ...(metaPageId ? { platform_user_id: metaPageId } : {}),
+          ...(metaPageName ? { platform_username: metaPageName } : {}),
         },
         { onConflict: 'tenant_id,platform' }
       );

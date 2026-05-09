@@ -8,6 +8,7 @@
 
 import { Job } from 'bullmq';
 import { validateToken, refreshToken, supportsAutoRefresh } from '../../../lib/security/oauth-token-manager';
+import { getSupabaseAdminClient } from '../../../lib/auth/supabase-auth';
 import { post as metaPost } from '../../../lib/integrations/social/meta';
 import { uploadVideo as tiktokUpload } from '../../../lib/integrations/social/tiktok';
 import { createPost as linkedinPost } from '../../../lib/integrations/social/linkedin';
@@ -21,13 +22,13 @@ const log = createWorkerLogger(2, 'social-publishing');
 
 type OAuthPlatform = 'meta_facebook' | 'meta_instagram' | 'tiktok' | 'linkedin' | 'youtube' | 'pinterest' | 'reddit';
 
-const PLATFORM_MAP: Record<string, { oauthPlatform: OAuthPlatform; postFn: string }> = {
-  meta: { oauthPlatform: 'meta_facebook', postFn: 'meta' },
-  tiktok: { oauthPlatform: 'tiktok', postFn: 'tiktok' },
-  linkedin: { oauthPlatform: 'linkedin', postFn: 'linkedin' },
-  youtube: { oauthPlatform: 'youtube', postFn: 'youtube' },
-  pinterest: { oauthPlatform: 'pinterest', postFn: 'pinterest' },
-  reddit: { oauthPlatform: 'reddit', postFn: 'reddit' },
+const PLATFORM_MAP: Record<string, { oauthPlatform: OAuthPlatform; postFn: string; platformId: string }> = {
+  meta: { oauthPlatform: 'meta_facebook', postFn: 'meta', platformId: 'facebook' },
+  tiktok: { oauthPlatform: 'tiktok', postFn: 'tiktok', platformId: 'tiktok' },
+  linkedin: { oauthPlatform: 'linkedin', postFn: 'linkedin', platformId: 'linkedin' },
+  youtube: { oauthPlatform: 'youtube', postFn: 'youtube', platformId: 'youtube' },
+  pinterest: { oauthPlatform: 'pinterest', postFn: 'pinterest', platformId: 'pinterest' },
+  reddit: { oauthPlatform: 'reddit', postFn: 'reddit', platformId: 'reddit' },
 };
 
 export async function processSocialPosting(job: Job<SocialPostingPayload>): Promise<JobResult> {
@@ -44,11 +45,11 @@ export async function processSocialPosting(job: Job<SocialPostingPayload>): Prom
     if (!config) throw new Error(`Unsupported platform: ${platform}`);
 
     // Step 1: Validate OAuth token
-    const validation = await validateToken(tenant_id, config.oauthPlatform, `${tenant_id}-${platform}`);
+    const validation = await validateToken(tenant_id, config.oauthPlatform, config.platformId);
     if (!validation.valid) {
       // Try auto-refresh if supported
       if (supportsAutoRefresh(config.oauthPlatform)) {
-        const refresh = await refreshToken(tenant_id, config.oauthPlatform, `${tenant_id}-${platform}`);
+        const refresh = await refreshToken(tenant_id, config.oauthPlatform, config.platformId);
         if (!refresh.success) {
           return { success: false, error: `Token invalid and refresh failed: ${refresh.reason}`, tenant_id, job_type: 'social-posting', timestamp: new Date().toISOString() };
         }
@@ -58,10 +59,20 @@ export async function processSocialPosting(job: Job<SocialPostingPayload>): Prom
     }
 
     // Step 2: Post to platform
+    const supabase = getSupabaseAdminClient();
+    const { data: metaPlatform } = await supabase
+      .from('connected_platforms')
+      .select('platform_user_id')
+      .eq('tenant_id', tenant_id)
+      .eq('platform', 'meta')
+      .single();
+    const metaPageId = metaPlatform?.platform_user_id ?? null;
+
     let platformPostId: string;
     switch (platform) {
       case 'meta': {
-        const r = await metaPost({ pageId: `${tenant_id}-page`, content: post_text, mediaUrl: media_urls?.[0], tenantId: tenant_id });
+        if (!metaPageId) throw new Error('Meta Page ID not found — reconnect Meta in integrations');
+        const r = await metaPost({ pageId: metaPageId, content: post_text, mediaUrl: media_urls?.[0], tenantId: tenant_id });
         platformPostId = r.postId;
         break;
       }
